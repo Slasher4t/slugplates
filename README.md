@@ -1,162 +1,265 @@
 # SlugEats
 
-UCSC dining hall macro tracker. Two parts:
+**A macro tracker built around what UCSC is actually serving.**
 
-- **Backend** (repo root, `app/`) — FastAPI + Playwright, scrapes live menu and
-  nutrition data off UCSC Dining's real site.
-- **Frontend** (`frontend/`) — Vite + React + TypeScript, the actual app:
-  Menu / Today / Goals / History, responsive from a phone-width browser up to
-  a full desktop layout, styled after native iOS/macOS.
+SlugEats pulls live menu and nutrition data from UC Santa Cruz dining locations and turns it into a simple macro-tracking app. Instead of finding a meal on UCSC's dining site, looking up its nutrition label, and manually entering it somewhere else, SlugEats puts the whole flow in one place.
+
+**Live app:** https://slugeats.vercel.app/
+
+Two parts:
+
+* **Backend** (repo root, `app/`) — FastAPI + Playwright scraper that turns UCSC Dining's CBORD FoodPro site into structured menu and nutrition data.
+* **Frontend** (`frontend/`) — Vite + React + TypeScript app with Menu / Today / Goals / History, responsive from a phone-width browser to desktop and styled after native iOS/macOS.
+
+## Why SlugEats
+
+Tracking macros on a college meal plan is weirdly annoying.
+
+UCSC publishes menus and nutrition information, but the existing system isn't designed around questions like:
+
+* What's actually being served at my dining hall today?
+* How much protein is in this meal?
+* What does adding this put my daily macros at?
+* Which dining hall has the food I'm looking for?
+
+SlugEats connects the dining menu directly to the tracker: find what UCSC is serving, tap **+**, and it's in your day.
+
+## Features
+
+* **Live UCSC menus** — browse Breakfast, Lunch, and Dinner across supported dining locations.
+* **Real nutrition data** — calories, protein, carbs, and fat come from UCSC FoodPro nutrition labels.
+* **Daily tracking** — add dining items directly from the menu and see progress toward your macros.
+* **Custom goals** — set daily calorie, protein, carbohydrate, and fat targets.
+* **History** — visualize intake over daily and weekly ranges.
+* **Cross-hall search** — backend support for finding foods across dining halls.
+* **Responsive UI** — one interface designed for both mobile and desktop.
+* **Light / Dark / Auto themes** — including system appearance matching.
 
 ## Data source
 
-UCSC Dining runs **CBORD FoodPro** at <https://nutrition.sa.ucsc.edu/> — not a
-REST API. It's classic ASP.NET WebForms with server-side session state and
-pages that 500 if requested out of order, so the backend drives a real
-headless browser (Playwright) instead of hand-rolling HTTP/cookies.
+UCSC Dining runs **CBORD FoodPro** at https://nutrition.sa.ucsc.edu/ — not a REST API. It's classic ASP.NET WebForms with server-side session state and pages that 500 if requested out of order, so the backend drives a real headless browser with Playwright instead of hand-rolling HTTP requests and cookies.
 
-Key findings from testing against the live site (see `app/config.py` and
-`app/foodpro_scraper.py` for the full detail):
+Key findings from testing against the live site (see `app/config.py` and `app/foodpro_scraper.py` for the full detail):
 
-- Hitting `longmenu.aspx` cold (no prior page load in that browser session)
-  returns HTTP 500 every time — a landing-page visit has to happen first to
-  establish session state.
-- Recipe nutrition labels (`label.aspx`) are keyed **only** by a recipe id,
-  identical across every hall and date — so nutrition is cached globally and
-  permanently, not per hall/day. Menu listings, which do vary by hall/date/
-  meal, get a much shorter TTL.
-- There are **four** dining halls (John R. Lewis & College Nine, Cowell &
-  Stevenson, Crown & Merrill, Rachel Carson & Oakes) plus three cafes/markets
-  — not five, and there's no Porter/Kresge location in FoodPro.
+* Hitting `longmenu.aspx` cold (no prior page load in that browser session) returns HTTP 500 every time — a landing-page visit has to happen first to establish session state.
+* Recipe nutrition labels (`label.aspx`) are keyed **only** by recipe id and are identical across halls and dates, so nutrition can be cached globally instead of per hall/day.
+* Menu listings do vary by hall, date, and meal, so they're cached separately with a shorter TTL.
+* FoodPro currently exposes **four** full dining halls — John R. Lewis & College Nine, Cowell & Stevenson, Crown & Merrill, and Rachel Carson & Oakes — plus three cafes/markets.
 
-## Quick start (local dev, both parts)
+The resulting flow looks roughly like:
 
-**Backend:**
-
-```bash
-cd slugmacros                  # repo root — see note on the folder name below
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-playwright install chromium    # REQUIRED — pip alone doesn't ship the browser
-uvicorn app.main:app --reload  # http://localhost:8000
+```text
+UCSC Dining / CBORD FoodPro
+            ↓
+     Playwright scraper
+            ↓
+        FastAPI API
+            ↓
+     SlugEats frontend
 ```
 
-Offline / no-browser mode: `USE_MOCK_DATA=1 uvicorn app.main:app --reload`.
+## Quick start
 
-**Frontend** (separate terminal):
+### Backend
+
+```bash
+git clone https://github.com/Slasher4t/slugeats.git
+cd slugeats
+
+python3 -m venv venv
+source venv/bin/activate
+
+pip install -r requirements.txt
+playwright install chromium
+
+uvicorn app.main:app --reload
+```
+
+The API runs at:
+
+```text
+http://localhost:8000
+```
+
+For offline development without FoodPro or Chromium:
+
+```bash
+USE_MOCK_DATA=1 uvicorn app.main:app --reload
+```
+
+### Frontend
+
+In a separate terminal:
 
 ```bash
 cd frontend
-cp .env.example .env.local     # defaults to http://localhost:8000
+cp .env.example .env.local
 npm install
-npm run dev                    # http://localhost:5173
+npm run dev
 ```
 
-Open `http://localhost:5173` — that's the actual app.
+By default:
+
+```text
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+That's the actual app.
 
 ## Backend endpoints
 
-- `GET /locations` — `{dining_halls: {...}, cafes_markets: {...}}`, grouped
-  for the frontend's location switcher
-- `GET /halls` — flat `{slug: name}`, dining halls only (`?include_cafes=true`
-  for everything) — kept for backward compatibility, `/locations` is what the
-  frontend actually uses
-- `GET /menu/{hall_id}?menu_type=lunch&date=2026-09-01` — one hall's menu with
-  full macros
-- `GET /menu?menu_type=lunch&date=...` — all halls at once
-- `GET /search?q=chicken&menu_type=lunch&date=...` — cross-hall search
-- `POST /tray/totals`, `POST /suggest` — left over from an earlier iteration;
-  harmless, unused by the current frontend (it computes totals client-side
-  from its own log), kept since nothing asked for their removal
+* `GET /locations` — grouped dining halls and cafes/markets for the frontend location switcher.
+* `GET /halls` — flat `{slug: name}` list; dining halls only by default, or `?include_cafes=true`.
+* `GET /menu/{hall_id}?menu_type=lunch&date=2026-09-02` — one location's menu with available nutrition data.
+* `GET /menu?menu_type=lunch&date=...` — menus across all dining halls.
+* `GET /search?q=chicken&menu_type=lunch&date=...` — cross-hall food search.
+* `POST /tray/totals` — calculate macros for a collection of foods and serving counts.
+* `POST /suggest` — suggest menu items based on remaining macro targets.
 
-Caching, pacing, and the exact scrape mechanics are documented in
-`app/foodpro_scraper.py` and `app/config.py`.
+Caching, request pacing, session handling, and the exact scrape mechanics are documented in `app/foodpro_scraper.py` and `app/config.py`.
 
 ## Frontend architecture
 
-Plain Vite + React + TypeScript — no Next.js, no CSS framework, no state
-library beyond React context. Deliberately minimal given the app's size.
+Plain Vite + React + TypeScript — no Next.js, no CSS framework, and no state library beyond React context. Deliberately minimal given the app's size.
 
-- **Responsive strategy**: one codebase, one CSS breakpoint (900px). Below it:
-  bottom tab bar, single-column stacked layout — the same visual language as
-  a native iOS app. At/above it: top nav, side-by-side grids. Both the
-  desktop top-nav and mobile tab-bar are always in the DOM; CSS `display`
-  shows exactly one per breakpoint (elements hidden via `display: none` are
-  already excluded from the tab order and accessibility tree, so this isn't
-  an a11y issue, just two nav renderings for one router state).
-- **`src/context/`** — `ThemeContext` (auto/light/dark, mirrors
-  `prefers-color-scheme` when auto), `GoalsContext` (the four numbers),
-  `LogContext` (the food log), `MenuSelectionContext` (what the Menu tab is
-  currently browsing). All persisted through one seam:
-- **`src/storage/keyValueStore.ts`** — every persisted read/write goes through
-  this one module instead of touching `localStorage` directly, specifically
-  so a future move to real accounts is a contained change here, not a rewrite
-  across contexts/components. See its header comment for the reasoning.
-- **`src/api/`** — typed fetch wrappers around the backend, base URL from
-  `VITE_API_BASE_URL`.
-- **`src/components/today/TripleRing.tsx`** — the Apple-Fitness-style ring.
-  Outer→inner: Calories (rose) → Carbs (sage) → Fat (navy light-mode / sky
-  dark-mode via the `--accent` token). Protein has no ring — legend-only,
-  matching Apple's own 3-ring cap for readability.
-- **`src/pages/HistoryPage.tsx`** + **`src/utils/history.ts`** — daily/weekly
-  aggregation over the log, Line (7/30 day) and Bar (4/8 week) views via
-  Recharts, with a "keep logging" empty state below 3 logged days.
+* **Responsive strategy** — one codebase with a primary breakpoint at 900px. Below it: bottom tab bar and single-column stacked layout. At/above it: top navigation and wider grid layouts.
+* **`src/context/`** — `ThemeContext`, `GoalsContext`, `LogContext`, and `MenuSelectionContext` own shared application state.
+* **`src/storage/keyValueStore.ts`** — every persisted read/write goes through one module rather than accessing `localStorage` throughout the app. This gives the app a single migration point when persistent accounts are added.
+* **`src/api/`** — typed fetch wrappers around the FastAPI backend, with the API origin supplied through `VITE_API_BASE_URL`.
+* **`src/components/today/TripleRing.tsx`** — Apple-Fitness-inspired macro visualization. Outer → inner: Calories → Carbs → Fat, with Protein displayed separately.
+* **`src/pages/HistoryPage.tsx`** + **`src/utils/history.ts`** — daily/weekly aggregation over the food log with Line and Bar views through Recharts.
 
-## Product decisions made along the way
+## Product decisions
 
-A few things the spec left as calls to make, decided and recorded here so
-they're not silently arbitrary:
+A few behaviors are intentional rather than accidental implementation details:
 
-- **Log date is always real "today"**, regardless of what date you're
-  browsing on the Menu tab. Browsing tomorrow's dinner menu to plan ahead and
-  tapping **+** logs it under today, not tomorrow — the Menu tab's date field
-  is a menu-preview control only, never a log backdating control.
-- **Goals/log/history persist to `localStorage`, not Supabase**, since there's
-  no auth system — without real accounts, "server-side" storage would still
-  just be keyed by a random per-browser id, i.e. localStorage with extra
-  latency and infra for no actual cross-device benefit yet. Revisit once
-  accounts exist; `keyValueStore.ts` is the seam for that.
-- **Delete gesture**: true iOS swipeActions isn't available on the web without
-  a gesture library. The equivalent here is tap-to-reveal (tap a logged item
-  to slide it left and expose a Remove button; tap again to hide it), plus a
-  hover-to-reveal bonus on pointer devices via `@media (hover: hover)`.
-- **TypeScript** over plain JS for the frontend — the app has real shared data
-  shapes (API items, goals, log entries, daily aggregates) moving through 4
-  tabs and two chart types; worth the type safety, and Vite's official
-  React-TS template is a zero-extra-config starting point.
-- **Recharts** over Chart.js — composes as React components/props rather than
-  fighting an imperative canvas API.
+* **The log date is always the real current day.** Browsing another date in Menu is treated as previewing a menu, not changing the date of your food log.
+* **Goals, log, and history currently persist locally.** Without accounts, putting them in a remote database would add infrastructure without providing meaningful identity-based cross-device sync.
+* **Persistent storage has one abstraction layer.** `keyValueStore.ts` exists specifically so moving from local storage to an authenticated backend doesn't require rewriting every context and component.
+* **Logged-item deletion uses tap-to-reveal.** On mobile, tapping a logged item exposes its Remove action; pointer devices additionally support hover behavior.
+* **TypeScript was chosen intentionally.** Menu items, nutrition information, goals, log entries, and history aggregates are shared across multiple parts of the application and benefit from common typed models.
+* **Recharts was chosen over Chart.js.** Its component model fits naturally into the existing React UI.
 
 ## Deployment
 
-**Frontend → Vercel.** Point a Vercel project's root directory at `frontend/`;
-it auto-detects Vite (`npm run build`, output `dist/`). `vercel.json` adds an
-SPA rewrite so refreshing `/today`, `/goals`, etc. doesn't 404. Set
-`VITE_API_BASE_URL` as a Vercel environment variable to wherever the backend
-actually lives.
+SlugEats is deployed as two separate services because the frontend and scraper have very different runtime requirements.
 
-**Backend → NOT Vercel.** This is the part that needs a real flag: the backend
-runs Playwright, and a cold hall scrape can take up to ~90 seconds (see
-measured numbers in `app/foodpro_scraper.py`'s module docstring). Vercel
-serverless functions have execution time limits (10–60s depending on plan)
-that a cold scrape can blow straight through, and Playwright's browser binary
-doesn't fit the serverless deployment model well regardless. It needs a host
-with a persistent, long-lived process — Fly.io, Render, Railway, or a plain
-VPS all work. Nothing about this has been deployed yet; both parts currently
-only run locally.
+**Frontend → Vercel**
 
-## Known simplifications / not built yet
+The React/Vite frontend is deployed from `frontend/` on Vercel.
 
-- No accounts — Goals/log/history are per-browser (`localStorage`), so they
-  don't follow you across devices yet.
-- The repo's top-level folder is still named `slugmacros` on disk. Renaming it
-  would disrupt whatever IDE workspace/session currently has it open as a
-  root, so it was left as-is pending an explicit go-ahead — everything
-  *inside* it (package name, app titles, UI copy, code comments) is SlugEats.
-- `app/main.py`'s `/tray/totals` and `/suggest` endpoints are unused by the
-  current frontend (superseded by the client-side log) but left in place.
-- Menu.tab's "log to today" behavior means there's currently no way to log a
-  past day's meal after the fact (e.g. catching up on yesterday) — a
-  deliberate v1 simplification, not an oversight; see the product decisions
-  section above.
+Production:
+
+https://slugeats.vercel.app/
+
+The production frontend receives the backend origin through:
+
+```text
+VITE_API_BASE_URL=https://slugeats-api.onrender.com
+```
+
+`vercel.json` provides the SPA rewrite required for direct navigation to routes such as `/menu`, `/today`, `/goals`, and `/history`.
+
+**Backend → Render**
+
+The FastAPI + Playwright service runs as a persistent Render web service:
+
+https://slugeats-api.onrender.com/
+
+Playwright's Chromium binary is installed during the Render build:
+
+```bash
+pip install -r requirements.txt && PLAYWRIGHT_BROWSERS_PATH=/opt/render/project/src/.playwright playwright install chromium
+```
+
+The same browser path is supplied when the server starts:
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH=/opt/render/project/src/.playwright uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+A long-lived backend is important here because the scraper maintains a Playwright browser and FoodPro session instead of launching a new Chromium instance for every request.
+
+Cold requests can still be significantly slower than cached requests, especially when the service has recently started and nutrition labels have not yet populated the recipe cache.
+
+## Caching
+
+There are two distinct caches because menu listings and nutrition labels have different lifetimes.
+
+**Menu cache**
+
+Keyed by:
+
+```text
+location + date + meal
+```
+
+Published menu data gets a normal TTL, while empty/closed-hall responses expire sooner so newly published meals can appear quickly.
+
+**Recipe cache**
+
+Keyed by:
+
+```text
+RecNumAndPort
+```
+
+FoodPro serves the same nutrition label for a recipe regardless of hall or date, so recipe nutrition can be reused globally. As this cache fills, fewer FoodPro label requests are necessary and menu requests become substantially cheaper.
+
+## Current limitations
+
+* **No accounts yet** — Goals, log, and history remain per-browser and don't sync across devices.
+* **Cold menu loads can be slow** — uncached requests may require Playwright to navigate FoodPro and fetch nutrition labels before responding.
+* **No manual backdating** — the current food log is intentionally tied to the real current day.
+* **`/tray/totals` and `/suggest` aren't used by the current frontend** — they're retained as useful API functionality and possible building blocks for later versions.
+
+## What's next
+
+* **Background menu refresh** — populate caches before a user has to wait for them.
+* **Faster cold loads** — separate immediate menu delivery from slower nutrition-cache enrichment.
+* **Supabase accounts** — authentication and persistent user profiles.
+* **Cross-device sync** — shared goals, logs, and history between devices.
+* **Native iOS app** — use the same FastAPI menu backend and account data as the web client.
+* **Smarter suggestions** — recommend foods available right now based on remaining macros.
+* **Better cross-hall discovery** — make questions like "where can I get chicken right now?" part of the main UI.
+
+## Stack
+
+**Frontend**
+
+* React
+* TypeScript
+* Vite
+* Recharts
+
+**Backend**
+
+* Python
+* FastAPI
+* Playwright
+* BeautifulSoup
+* Pydantic
+
+**Infrastructure**
+
+* Vercel
+* Render
+* Supabase *(planned)*
+
+## AI-assisted development
+
+SlugEats uses AI-assisted development as part of the engineering workflow. I designed the product, architecture, interface, scraping/data pipeline, and technical direction while using AI coding tools to accelerate implementation, testing, debugging, and iteration.
+
+## About
+
+Built by **Jayanth Bandaru**, Computer Science @ UC Santa Cruz.
+
+SlugEats is an independent student project and is not affiliated with or endorsed by UC Santa Cruz.
+
+Built because figuring out the macros in dining hall food should not require this much effort.
