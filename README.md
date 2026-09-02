@@ -4,11 +4,12 @@
 
 SlugPlates pulls live menu and nutrition data from UC Santa Cruz dining locations and turns it into a simple macro-tracking app. Instead of finding a meal on UCSC's dining site, looking up its nutrition label, and manually entering it somewhere else, SlugPlates puts the whole flow in one place.
 
-**Live app:** https://slugeats.vercel.app/
+**Live app:** https://slugplates.vercel.app/
 
-> Product name note: the consumer-facing app is SlugPlates. The repo, live
-> URLs, and backend API kept their original "SlugEats" identity through this
-> rename (see "Naming" below) - that's intentional, not stale copy.
+> Product name note: the consumer-facing app is SlugPlates. The backend API,
+> its Render URL, and the GitHub repo kept their original "SlugEats" identity
+> through this rename (see "Naming" below) - that's intentional, not stale
+> copy.
 
 Two parts:
 
@@ -31,13 +32,14 @@ deliberately did *not* follow:
   every real visitor's saved goals/log/theme invisible overnight (the app
   would look under a new prefix and find nothing) - a storage-behavior
   change well outside a cosmetic rename.
-* **Live URLs, the GitHub repo, and clone instructions still say
-  "slugeats"** (`slugeats.vercel.app`, `slugeats-api.onrender.com`,
-  `github.com/Slasher4t/slugeats`) — those are real, currently-deployed
-  infrastructure names. Changing the text here wouldn't change the actual
-  domains/repo, so leaving them accurate took priority over leaving them
-  matching; renaming the underlying services is a separate, infrastructural
-  decision this pass didn't make.
+* **The backend URL, and the GitHub repo/clone path, still say "slugeats"**
+  (`slugeats-api.onrender.com`, `github.com/Slasher4t/slugeats`) — those are
+  real, currently-deployed infrastructure names. Changing the text here
+  wouldn't change the actual domain/repo, so leaving them accurate took
+  priority over leaving them matching; renaming them is a separate,
+  infrastructural decision this pass didn't make. The Vercel frontend domain
+  *was* moved to `slugplates.vercel.app`, so that one now matches the app
+  name.
 
 ## Why SlugPlates
 
@@ -184,7 +186,7 @@ The React/Vite frontend is deployed from `frontend/` on Vercel.
 
 Production:
 
-https://slugeats.vercel.app/
+https://slugplates.vercel.app/
 
 The production frontend receives the backend origin through:
 
