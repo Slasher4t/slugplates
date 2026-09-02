@@ -45,7 +45,12 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
   background: var(--accent);
   padding: 14px 28px;
 }
-.top-nav-brand { color: white; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.top-nav-brand { display: flex; align-items: center; gap: 9px; color: white; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+
+/* The SVG source already bakes in Apple's ~22.37% squircle corner radius, so
+   this border-radius is just a defensive backstop (e.g. if the asset is ever
+   swapped for a plain square PNG) rather than doing the actual rounding. */
+.brand-icon { border-radius: 22.37%; flex-shrink: 0; display: block; }
 .top-nav-links { display: flex; gap: 24px; }
 .top-nav-link { color: rgba(255,255,255,0.72); font-size: 14px; font-weight: 500; padding-bottom: 3px; border-bottom: 2px solid transparent; transition: color 0.15s; }
 .top-nav-link.active { color: white; border-bottom-color: var(--rose); }
@@ -53,6 +58,9 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 
 /* Mobile title header */
 .mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: max(env(safe-area-inset-top), 14px) 18px 6px;
   background: var(--bg);
 }

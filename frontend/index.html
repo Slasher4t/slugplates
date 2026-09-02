@@ -2,7 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥗</text></svg>" />
+    <!-- icon.svg carries its own baked-in squircle clip (Apple's ~22.37%
+         corner-radius convention), so this one asset is already correctly
+         rounded wherever it's used - here as the tab favicon, and again as
+         the in-app mark in AppShell. apple-touch-icon.png is a 180x180
+         raster of the same source, for iOS "Add to Home Screen"/pinned tabs
+         that expect a PNG rather than SVG. -->
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="alternate icon" href="/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#F6F0ED" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0B0D0E" media="(prefers-color-scheme: dark)" />

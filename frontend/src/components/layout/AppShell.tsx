@@ -23,7 +23,10 @@ export function AppShell() {
     <div className="app-shell">
       {/* Desktop top nav */}
       <header className="top-nav">
-        <div className="top-nav-brand">SlugEats</div>
+        <div className="top-nav-brand">
+          <img src="/icon.svg" alt="" className="brand-icon" width={26} height={26} />
+          SlugEats
+        </div>
         <nav className="top-nav-links">
           {TABS.map(({ to, label }) => (
             <NavLink key={to} to={to} className={({ isActive }) => `top-nav-link${isActive ? " active" : ""}`}>
@@ -35,6 +38,7 @@ export function AppShell() {
 
       {/* Mobile title header */}
       <header className="mobile-header">
+        <img src="/icon.svg" alt="" className="brand-icon" width={22} height={22} />
         <h1>{title}</h1>
       </header>
 

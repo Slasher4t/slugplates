@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Apple's app icon corner radius convention is ~22.37% of the icon's
+         size (the "squircle" ratio) - baked in here so this one SVG source
+         is correct wherever it's used (favicon, in-app mark, apple-touch-icon
+         rasterization) without each consumer having to re-derive it. -->
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="1024" height="1024" rx="229" ry="229" />
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <rect x="0" y="0" width="1024" height="1024" fill="#123A5C" />
+
+    <!-- shell -->
+    <path
+      d="M 512 268
+         C 560 268 606 316 646 380
+         C 672 422 686 456 686 476
+         C 686 492 672 500 646 500
+         L 378 500
+         C 352 500 338 492 338 476
+         C 338 456 352 422 378 380
+         C 418 316 464 268 512 268 Z"
+      fill="#C2948A"
+    />
+    <circle cx="470" cy="420" r="34" fill="#7EA8BE" />
+    <circle cx="568" cy="420" r="34" fill="#7EA8BE" />
+
+    <!-- body: one simple thick crescent, low-poly "smile" - no self-crossing -->
+    <path
+      d="M 218 566
+         C 218 672 312 748 434 748
+         C 566 748 660 674 700 574"
+      fill="none"
+      stroke="#F8F1E1"
+      stroke-width="92"
+      stroke-linecap="round"
+    />
+
+    <!-- tail/antenna: a small separate curl clear of the body's right end -->
+    <path
+      d="M 726 546
+         C 748 492 800 476 832 506
+         C 852 526 846 556 816 566"
+      fill="none"
+      stroke="#F8F1E1"
+      stroke-width="42"
+      stroke-linecap="round"
+    />
+  </g>
+</svg>
