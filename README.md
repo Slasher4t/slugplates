@@ -6,10 +6,9 @@ SlugPlates pulls live menu and nutrition data from UC Santa Cruz dining location
 
 **Live app:** https://slugplates.vercel.app/
 
-> Product name note: the consumer-facing app is SlugPlates. The backend API,
-> its Render URL, and the GitHub repo kept their original "SlugEats" identity
-> through this rename (see "Naming" below) - that's intentional, not stale
-> copy.
+> Product name note: the consumer-facing app is SlugPlates. The backend API
+> and its Render URL kept their original "SlugEats" identity through this
+> rename (see "Naming" below) - that's intentional, not stale copy.
 
 Two parts:
 
@@ -32,14 +31,13 @@ deliberately did *not* follow:
   every real visitor's saved goals/log/theme invisible overnight (the app
   would look under a new prefix and find nothing) - a storage-behavior
   change well outside a cosmetic rename.
-* **The backend URL, and the GitHub repo/clone path, still say "slugeats"**
-  (`slugeats-api.onrender.com`, `github.com/Slasher4t/slugeats`) — those are
-  real, currently-deployed infrastructure names. Changing the text here
-  wouldn't change the actual domain/repo, so leaving them accurate took
-  priority over leaving them matching; renaming them is a separate,
+* **The backend URL still says "slugeats"** (`slugeats-api.onrender.com`) —
+  real, currently-deployed infrastructure. Changing the text here wouldn't
+  change the actual domain, so leaving it accurate took priority over
+  leaving it matching; renaming the Render service is a separate,
   infrastructural decision this pass didn't make. The Vercel frontend domain
-  *was* moved to `slugplates.vercel.app`, so that one now matches the app
-  name.
+  and the GitHub repo itself *were* moved (`slugplates.vercel.app`,
+  `github.com/Slasher4t/slugplates`), so those two now match the app name.
 
 ## Why SlugPlates
 
@@ -93,8 +91,8 @@ UCSC Dining / CBORD FoodPro
 ### Backend
 
 ```bash
-git clone https://github.com/Slasher4t/slugeats.git
-cd slugeats
+git clone https://github.com/Slasher4t/slugplates.git
+cd slugplates
 
 python3 -m venv venv
 source venv/bin/activate
