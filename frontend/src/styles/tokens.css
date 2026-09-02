@@ -1,0 +1,110 @@
+/* ==========================================================================
+   SlugEats design tokens.
+   Light values live on :root. Dark values override under both
+   prefers-color-scheme (for 'auto') and [data-theme="dark"] (for the manual
+   toggle) so the override always wins regardless of system setting.
+   Exact hex values are fixed by design spec - do not substitute nearby
+   Tailwind/Material palette colors for these.
+   ========================================================================== */
+
+:root {
+  /* Backgrounds */
+  --bg: #F6F0ED;
+  --surface: #FFFFFF;
+  --surface-alt: #F9F7F5;
+  --surface-sunken: #F2F2F7;
+
+  /* Borders */
+  --border: #E5DDD6;
+  --border-soft: #EEE6DF;
+
+  /* Text */
+  --text: #000000;
+  --text-secondary: #5C6B72;
+  --text-tertiary: #8E9AA0;
+
+  /* Accents */
+  --accent: #28536B;       /* primary accent in light mode */
+  --accent-soft: #E2ECF0;  /* accent track background, light */
+  --add-btn: #7EA8BE;      /* "add item" button color in light mode */
+  --rose: #C2948A;         /* protein / calories-ring accent, both modes */
+  --rose-soft: #F3E2DD;
+  --sage: #BBB193;         /* carbs accent, both modes */
+  --sage-soft: #EEEAE0;
+  --danger: #E24B4A;
+
+  /* History bar chart: the current/most-recent period needs to read as
+     visually distinct from past periods. In light mode navy already does
+     that against sky-blue bars; in dark mode --accent becomes sky itself
+     (same as the bar color), so the highlight switches to rose instead -
+     it's the one accent that never doubles as a bar/line color there. */
+  --bar-past: #7EA8BE;
+  --bar-current: #28536B;
+
+  --shadow: rgba(40, 83, 107, 0.12);
+  --card-radius: 14px;
+  --control-radius: 10px;
+  --sheet-radius: 20px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B0D0E;
+    --surface: #17191B;
+    --surface-alt: #17191B;
+    --surface-sunken: #1F2224;
+
+    --border: #26292B;
+    --border-soft: #26292B;
+
+    --text: #F2EEEA;
+    --text-secondary: #9A9C9E;
+    --text-tertiary: #6E7274;
+
+    --accent: #7EA8BE;      /* primary accent in dark mode - navy loses too much contrast */
+    --accent-soft: #1C2A30;
+    --add-btn: #7EA8BE;
+    --rose: #C2948A;
+    --rose-soft: #2B211F;
+    --sage: #BBB193;
+    --sage-soft: #24231C;
+    --danger: #FF6961;
+
+    --bar-past: #7EA8BE;
+    --bar-current: #C2948A;
+
+    --shadow: rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0B0D0E;
+  --surface: #17191B;
+  --surface-alt: #17191B;
+  --surface-sunken: #1F2224;
+
+  --border: #26292B;
+  --border-soft: #26292B;
+
+  --text: #F2EEEA;
+  --text-secondary: #9A9C9E;
+  --text-tertiary: #6E7274;
+
+  --accent: #7EA8BE;
+  --accent-soft: #1C2A30;
+  --add-btn: #7EA8BE;
+  --rose: #C2948A;
+  --rose-soft: #2B211F;
+  --sage: #BBB193;
+  --sage-soft: #24231C;
+  --danger: #FF6961;
+
+  --bar-past: #7EA8BE;
+  --bar-current: #C2948A;
+
+  --shadow: rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}

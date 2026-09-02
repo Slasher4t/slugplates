@@ -1,0 +1,13 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+
+# FoodPro is ASP.NET WebForms with server-side session state, so we drive a
+# real browser instead of hand-rolling cookies/postbacks with httpx.
+# After installing, you MUST also fetch the browser binary:
+#     playwright install chromium
+playwright==1.48.0
+
+# HTML parsing for the scraped menu/label pages.
+beautifulsoup4==4.12.3
+lxml==5.3.0
