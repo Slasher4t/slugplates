@@ -11,6 +11,12 @@
 // client-side, which is localStorage with extra network latency and infra
 // for no actual cross-device benefit. Revisit once accounts exist.
 
+// Deliberately NOT "slugplates." after the SlugEats -> SlugPlates rename:
+// this is the actual localStorage key prefix already written to real
+// visitors' browsers. Changing it would make every existing goal/log/theme
+// entry invisible (the app would look under a new prefix, find nothing, and
+// silently fall back to defaults) - a storage-behavior change the rename was
+// explicitly scoped to avoid. The brand name is cosmetic; this key is not.
 const PREFIX = "slugeats.";
 
 export function readJSON<T>(key: string, fallback: T): T {

@@ -1,17 +1,45 @@
-# SlugEats
+# SlugPlates
 
 **A macro tracker built around what UCSC is actually serving.**
 
-SlugEats pulls live menu and nutrition data from UC Santa Cruz dining locations and turns it into a simple macro-tracking app. Instead of finding a meal on UCSC's dining site, looking up its nutrition label, and manually entering it somewhere else, SlugEats puts the whole flow in one place.
+SlugPlates pulls live menu and nutrition data from UC Santa Cruz dining locations and turns it into a simple macro-tracking app. Instead of finding a meal on UCSC's dining site, looking up its nutrition label, and manually entering it somewhere else, SlugPlates puts the whole flow in one place.
 
 **Live app:** https://slugeats.vercel.app/
+
+> Product name note: the consumer-facing app is SlugPlates. The repo, live
+> URLs, and backend API kept their original "SlugEats" identity through this
+> rename (see "Naming" below) - that's intentional, not stale copy.
 
 Two parts:
 
 * **Backend** (repo root, `app/`) — FastAPI + Playwright scraper that turns UCSC Dining's CBORD FoodPro site into structured menu and nutrition data.
 * **Frontend** (`frontend/`) — Vite + React + TypeScript app with Menu / Today / Goals / History, responsive from a phone-width browser to desktop and styled after native iOS/macOS.
 
-## Why SlugEats
+## Naming
+
+The consumer-facing app was renamed **SlugEats → SlugPlates**. A few things
+deliberately did *not* follow:
+
+* **The backend keeps its "SlugEats API" identity** — FastAPI's `title`, the
+  root endpoint's `"name"` field, the scraper's User-Agent string
+  (`SlugEats/0.3 ...`), and `app/config.py`'s module docstring are all
+  unchanged. The API is a separate product identity from the app in front of
+  it, and nothing asked for its behavior (including what it calls itself
+  over the wire) to change.
+* **The frontend's localStorage key prefix is still `"slugeats."`** — see the
+  comment in `frontend/src/storage/keyValueStore.ts`. Renaming it would make
+  every real visitor's saved goals/log/theme invisible overnight (the app
+  would look under a new prefix and find nothing) - a storage-behavior
+  change well outside a cosmetic rename.
+* **Live URLs, the GitHub repo, and clone instructions still say
+  "slugeats"** (`slugeats.vercel.app`, `slugeats-api.onrender.com`,
+  `github.com/Slasher4t/slugeats`) — those are real, currently-deployed
+  infrastructure names. Changing the text here wouldn't change the actual
+  domains/repo, so leaving them accurate took priority over leaving them
+  matching; renaming the underlying services is a separate, infrastructural
+  decision this pass didn't make.
+
+## Why SlugPlates
 
 Tracking macros on a college meal plan is weirdly annoying.
 
@@ -22,7 +50,7 @@ UCSC publishes menus and nutrition information, but the existing system isn't de
 * What does adding this put my daily macros at?
 * Which dining hall has the food I'm looking for?
 
-SlugEats connects the dining menu directly to the tracker: find what UCSC is serving, tap **+**, and it's in your day.
+SlugPlates connects the dining menu directly to the tracker: find what UCSC is serving, tap **+**, and it's in your day.
 
 ## Features
 
@@ -55,7 +83,7 @@ UCSC Dining / CBORD FoodPro
             ↓
         FastAPI API
             ↓
-     SlugEats frontend
+     SlugPlates frontend
 ```
 
 ## Quick start
@@ -148,7 +176,7 @@ A few behaviors are intentional rather than accidental implementation details:
 
 ## Deployment
 
-SlugEats is deployed as two separate services because the frontend and scraper have very different runtime requirements.
+SlugPlates is deployed as two separate services because the frontend and scraper have very different runtime requirements.
 
 **Frontend → Vercel**
 
@@ -254,12 +282,12 @@ FoodPro serves the same nutrition label for a recipe regardless of hall or date,
 
 ## AI-assisted development
 
-SlugEats uses AI-assisted development as part of the engineering workflow. I designed the product, architecture, interface, scraping/data pipeline, and technical direction while using AI coding tools to accelerate implementation, testing, debugging, and iteration.
+SlugPlates uses AI-assisted development as part of the engineering workflow. I designed the product, architecture, interface, scraping/data pipeline, and technical direction while using AI coding tools to accelerate implementation, testing, debugging, and iteration.
 
 ## About
 
 Built by **Jayanth Bandaru**, Computer Science @ UC Santa Cruz.
 
-SlugEats is an independent student project and is not affiliated with or endorsed by UC Santa Cruz.
+SlugPlates is an independent student project and is not affiliated with or endorsed by UC Santa Cruz.
 
 Built because figuring out the macros in dining hall food should not require this much effort.

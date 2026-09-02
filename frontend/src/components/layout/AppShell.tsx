@@ -17,7 +17,7 @@ const PAGE_TITLES: Record<string, string> = {
 
 export function AppShell() {
   const { pathname } = useLocation();
-  const title = PAGE_TITLES[pathname] ?? "SlugEats";
+  const title = PAGE_TITLES[pathname] ?? "SlugPlates";
 
   return (
     <div className="app-shell">
@@ -25,7 +25,7 @@ export function AppShell() {
       <header className="top-nav">
         <div className="top-nav-brand">
           <img src="/icon.svg" alt="" className="brand-icon" width={26} height={26} />
-          SlugEats
+          SlugPlates
         </div>
         <nav className="top-nav-links">
           {TABS.map(({ to, label }) => (

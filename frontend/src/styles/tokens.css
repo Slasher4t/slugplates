@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SlugEats design tokens.
+   SlugPlates design tokens.
    Light values live on :root. Dark values override under both
    prefers-color-scheme (for 'auto') and [data-theme="dark"] (for the manual
    toggle) so the override always wins regardless of system setting.
