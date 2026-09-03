@@ -6,38 +6,11 @@ SlugPlates pulls live menu and nutrition data from UC Santa Cruz dining location
 
 **Live app:** https://slugplates.vercel.app/
 
-> Product name note: the consumer-facing app is SlugPlates. The backend API
-> and its Render URL kept their original "SlugEats" identity through this
-> rename (see "Naming" below) - that's intentional, not stale copy.
 
 Two parts:
 
 * **Backend** (repo root, `app/`) — FastAPI + Playwright scraper that turns UCSC Dining's CBORD FoodPro site into structured menu and nutrition data.
 * **Frontend** (`frontend/`) — Vite + React + TypeScript app with Menu / Today / Goals / History, responsive from a phone-width browser to desktop and styled after native iOS/macOS.
-
-## Naming
-
-The consumer-facing app was renamed **SlugEats → SlugPlates**. A few things
-deliberately did *not* follow:
-
-* **The backend keeps its "SlugEats API" identity** — FastAPI's `title`, the
-  root endpoint's `"name"` field, the scraper's User-Agent string
-  (`SlugEats/0.3 ...`), and `app/config.py`'s module docstring are all
-  unchanged. The API is a separate product identity from the app in front of
-  it, and nothing asked for its behavior (including what it calls itself
-  over the wire) to change.
-* **The frontend's localStorage key prefix is still `"slugeats."`** — see the
-  comment in `frontend/src/storage/keyValueStore.ts`. Renaming it would make
-  every real visitor's saved goals/log/theme invisible overnight (the app
-  would look under a new prefix and find nothing) - a storage-behavior
-  change well outside a cosmetic rename.
-* **The backend URL still says "slugeats"** (`slugeats-api.onrender.com`) —
-  real, currently-deployed infrastructure. Changing the text here wouldn't
-  change the actual domain, so leaving it accurate took priority over
-  leaving it matching; renaming the Render service is a separate,
-  infrastructural decision this pass didn't make. The Vercel frontend domain
-  and the GitHub repo itself *were* moved (`slugplates.vercel.app`,
-  `github.com/Slasher4t/slugplates`), so those two now match the app name.
 
 ## Why SlugPlates
 
