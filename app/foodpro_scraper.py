@@ -867,11 +867,15 @@ async def _prewarm() -> None:
     ahead of whatever a real visitor actually asks for next, which could
     leave that visitor waiting *longer* than if this didn't run at all.
 
-    Worth doing at all because Render's disk does not persist across deploys
-    (confirmed in production: cache_stats() reads 0 cached recipes/menus
-    immediately after a fresh deploy) - so every boot starts from a fully
-    cold cache regardless, and this just gives the most likely first request
-    a head start instead of only starting once that request actually arrives.
+    Production's self-hosted server has a persistent disk, so the cache
+    normally survives a restart/reboot and this mostly matters only for a
+    genuinely empty cache (first-ever run, a manual wipe, or the old Render
+    deployment as a fallback host - its disk did NOT persist across deploys,
+    confirmed in production there: cache_stats() read 0 cached recipes/menus
+    immediately after every fresh deploy). Kept as a startup step regardless
+    since it's a harmless, real win whenever the cache is cold: gives the
+    most likely first request a head start instead of only starting once
+    that request actually arrives.
 
     Uses the exact same path a real request would (_get_rows), so it composes
     safely with everything that already guards that path: the per-key

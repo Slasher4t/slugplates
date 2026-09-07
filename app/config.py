@@ -164,9 +164,15 @@ SYNC_ENRICHMENT_BUDGET_SECONDS = float(os.getenv("FOODPRO_SYNC_ENRICH_BUDGET", "
 # --------------------------------------------------------------------------
 # v1.1.0: startup prewarm
 # --------------------------------------------------------------------------
-# Render's disk is not persistent across deploys (confirmed in production -
-# cache_stats() reads 0 cached recipes/menus right after a fresh deploy), so
-# every boot means every hall is cold again. On startup, fire a single
+# Production is now a self-hosted server with a persistent local disk, so the
+# cache normally survives a systemd restart or reboot - this isn't papering
+# over an empty cache on every boot the way it originally had to. (The
+# original motivation: the previous Render deployment's disk was NOT
+# persistent across deploys - cache_stats() read 0 cached recipes/menus right
+# after every fresh deploy there - so every boot meant every hall was cold
+# again. That's still true if Render is ever used as a fallback host.) Kept
+# anyway because it's still a harmless, real win on a genuinely empty cache
+# (first-ever run, or after a manual cache wipe): on startup, fire a single
 # one-shot (not recurring, not a loop) background scrape of today's
 # current-meal-period menu for the app's default hall - the one combination
 # essentially every visitor hits first - so it has a head start instead of

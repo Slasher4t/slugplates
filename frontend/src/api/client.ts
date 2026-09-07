@@ -1,11 +1,14 @@
 // Fetch wrappers around the SlugEats FastAPI/Playwright scraper backend.
 //
 // Base URL comes from VITE_API_BASE_URL (see .env.example) so the same build
-// can point at localhost in dev and a real deployment in prod. That backend
-// is NOT Vercel-hostable itself - it runs Playwright and a cold hall scrape
-// can take up to ~90s, which blows past serverless function time limits - so
-// it needs a host with a persistent process (Fly.io/Render/Railway/a VPS).
-// See the README for the deployment note this implies.
+// can point at localhost in dev and a real deployment in prod - production
+// currently means a self-hosted server (systemd -> Uvicorn -> FastAPI ->
+// Playwright) exposed over HTTPS via Tailscale Funnel. That backend is NOT
+// Vercel-hostable itself - it runs Playwright and a cold hall scrape can
+// take several seconds to tens of seconds, which blows past serverless
+// function time limits - so it needs a host with a persistent process
+// instead (a VPS/self-hosted server, Fly.io, Railway, etc).
+// See the README's Architecture section for the current production setup.
 
 import type { FoodItem, LocationGroups, MealType } from "./types";
 

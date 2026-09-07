@@ -1,4 +1,5 @@
-# Dev-only: NOT installed on Render (only requirements.txt is). For running
-# the regression test suite locally: pip install -r requirements-dev.txt
+# Dev-only: not part of the production install (only requirements.txt is,
+# per the deployment steps in the README). For running the regression test
+# suite locally: pip install -r requirements-dev.txt
 -r requirements.txt
 pytest==8.3.4
