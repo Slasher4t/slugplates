@@ -3,16 +3,13 @@
 // LocationSwitcherSheet instead).
 
 import { useEffect, useRef, useState } from "react";
+import { shortHallName } from "../../utils/hallName";
 import { CheckIcon } from "../icons";
 
 interface Props {
   halls: Record<string, string>;
   selectedId: string | null;
   onSelect: (id: string) => void;
-}
-
-function shortName(name: string): string {
-  return name.split("&")[0].trim();
 }
 
 export function HallPicker({ halls, selectedId, onSelect }: Props) {
@@ -33,7 +30,7 @@ export function HallPicker({ halls, selectedId, onSelect }: Props) {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button className={`hall-picker-btn${open ? " open" : ""}`} onClick={() => setOpen((v) => !v)}>
-        {currentName ? shortName(currentName) : "Choose a hall"}
+        <span className="hall-picker-name">{currentName ? shortHallName(currentName) : "Choose a hall"}</span>
         <span className="chev">▾</span>
       </button>
       {open && (

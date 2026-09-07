@@ -8,11 +8,19 @@
    ========================================================================== */
 
 :root {
+  /* Typography: serif for display headings only (page titles, food-detail
+     name, brand wordmark) - editorial pairing against the sans body text.
+     System-serif fallback stack so a blocked/offline font fetch still reads
+     as "a serif," never a missing-font tofu/reflow moment. */
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Lora", Georgia, "Times New Roman", serif;
+
   /* Backgrounds */
   --bg: #F6F0ED;
   --surface: #FFFFFF;
   --surface-alt: #F9F7F5;
   --surface-sunken: #F2F2F7;
+  --nav-bg: rgba(246, 240, 237, 0.92); /* light top-nav/tab-bar wash, blurred */
 
   /* Borders */
   --border: #E5DDD6;
@@ -32,6 +40,7 @@
   --sage: #BBB193;         /* carbs accent, both modes */
   --sage-soft: #EEEAE0;
   --danger: #E24B4A;
+  --chart-grid: var(--border-soft);
 
   /* History bar chart: the current/most-recent period needs to read as
      visually distinct from past periods. In light mode navy already does
@@ -55,6 +64,7 @@
     --surface: #17191B;
     --surface-alt: #17191B;
     --surface-sunken: #1F2224;
+    --nav-bg: rgba(11, 13, 14, 0.85);
 
     --border: #26292B;
     --border-soft: #26292B;
@@ -71,6 +81,7 @@
     --sage: #BBB193;
     --sage-soft: #24231C;
     --danger: #FF6961;
+    --chart-grid: var(--border-soft);
 
     --bar-past: #7EA8BE;
     --bar-current: #C2948A;
@@ -85,6 +96,7 @@
   --surface: #17191B;
   --surface-alt: #17191B;
   --surface-sunken: #1F2224;
+  --nav-bg: rgba(11, 13, 14, 0.85);
 
   --border: #26292B;
   --border-soft: #26292B;
@@ -101,6 +113,7 @@
   --sage: #BBB193;
   --sage-soft: #24231C;
   --danger: #FF6961;
+  --chart-grid: var(--border-soft);
 
   --bar-past: #7EA8BE;
   --bar-current: #C2948A;

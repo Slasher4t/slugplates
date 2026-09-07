@@ -11,9 +11,31 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="alternate icon" href="/favicon-32.png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Editorial display serif for headings only (see --font-display in
+         tokens.css) - preconnect keeps the first paint of those headings
+         from waiting on a cold DNS/TLS round trip. display=swap means text
+         is never invisible while the font loads; the system-serif fallback
+         in --font-display covers a blocked/offline fetch entirely. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&display=swap" rel="stylesheet" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#F6F0ED" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0B0D0E" media="(prefers-color-scheme: dark)" />
+
+    <!-- Standalone-PWA polish (convenience only - see README/product
+         philosophy: the web app at slugplates.vercel.app is the complete
+         product with zero install requirement). apple-mobile-web-app-title
+         is the name iOS shows under the home-screen icon; without it, iOS
+         falls back to the page <title>, which already says "SlugPlates" so
+         this is a belt-and-suspenders explicit declaration. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="SlugPlates" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
     <title>SlugPlates</title>
   </head>
   <body>

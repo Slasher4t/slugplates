@@ -13,7 +13,7 @@
 // stays showing "Loading nutrition..." until the next real navigation
 // re-fetches - deliberately not a longer or repeating retry loop.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getHallMenu } from "../api/client";
 import type { FoodItem, MealType } from "../api/types";
 
@@ -24,6 +24,7 @@ interface State {
   loading: boolean;
   error: string | null;
   elapsedSeconds: number;
+  refetch: () => void;
 }
 
 export function useMenu(hallId: string | null, mealType: MealType, date: string): State {
@@ -31,7 +32,9 @@ export function useMenu(hallId: string | null, mealType: MealType, date: string)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [attempt, setAttempt] = useState(0);
   const tokenRef = useRef(0);
+  const refetch = useCallback(() => setAttempt((a) => a + 1), []);
 
   useEffect(() => {
     if (!hallId) return;
@@ -79,7 +82,7 @@ export function useMenu(hallId: string | null, mealType: MealType, date: string)
       clearInterval(tick);
       clearTimeout(followupTimer);
     };
-  }, [hallId, mealType, date]);
+  }, [hallId, mealType, date, attempt]);
 
-  return { items, loading, error, elapsedSeconds };
+  return { items, loading, error, elapsedSeconds, refetch };
 }

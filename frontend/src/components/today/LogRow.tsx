@@ -1,11 +1,10 @@
-// Delete affordance: on desktop (hover-capable pointers) the delete button
-// reveals on :hover via CSS alone. On touch, there's no hover, so tapping the
-// row itself slides it left to reveal the same button underneath - a tap
-// equivalent of iOS's swipe-to-delete rather than a real drag gesture, which
-// would need a gesture library for not much extra clarity at this scale.
+// v2.0: a persistent, always-visible remove affordance (matches the
+// mockup's small circular minus icon) instead of v1.1's hover/swipe-reveal
+// pattern - simpler and more discoverable, same underlying onRemove
+// capability either way.
 
-import { useState } from "react";
 import type { LogEntry } from "../../context/LogContext";
+import { MinusCircleIcon } from "../icons";
 
 interface Props {
   entry: LogEntry;
@@ -13,23 +12,19 @@ interface Props {
 }
 
 export function LogRow({ entry, onRemove }: Props) {
-  const [revealed, setRevealed] = useState(false);
-
   const metaParts: string[] = [];
   if (entry.calories != null) metaParts.push(`${Math.round(entry.calories)} cal`);
   if (entry.protein_g != null) metaParts.push(`${Math.round(entry.protein_g)}g protein`);
 
   return (
-    <div className={`log-row-wrap${revealed ? " revealed" : ""}`}>
-      <button className="log-row-delete" onClick={onRemove} aria-label={`Remove ${entry.name}`}>
-        Remove
-      </button>
-      <div className="log-row" onClick={() => setRevealed((v) => !v)} role="button" tabIndex={0}>
-        <span>
-          <span className="log-row-name">{entry.name}</span>
-          <span className="log-row-meta"> — {metaParts.join(" · ") || "no nutrition data"}</span>
-        </span>
+    <div className="log-row">
+      <div className="log-row-info">
+        <div className="log-row-name">{entry.name}</div>
+        <div className="log-row-meta">{metaParts.join(" · ") || "Nutrition unavailable"}</div>
       </div>
+      <button className="log-row-remove" onClick={onRemove} aria-label={`Remove ${entry.name}`}>
+        <MinusCircleIcon />
+      </button>
     </div>
   );
 }

@@ -1,0 +1,17 @@
+{
+  "name": "SlugPlates",
+  "short_name": "SlugPlates",
+  "description": "A dining and nutrition companion for UC Santa Cruz.",
+  "start_url": "/menu",
+  "id": "/menu",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F6F0ED",
+  "theme_color": "#F6F0ED",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

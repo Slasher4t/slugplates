@@ -40,3 +40,17 @@ export function formatShortDate(isoDate: string): string {
   const d = new Date(`${isoDate}T00:00:00`);
   return `${MONTH_SHORT[d.getMonth()]} ${d.getDate()}`;
 }
+
+const WEEKDAY_LONG = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+];
+const MONTH_LONG = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** "Wednesday, September 6" - the Today-page display heading style. */
+export function formatLongDate(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00`);
+  return `${WEEKDAY_LONG[d.getDay()]}, ${MONTH_LONG[d.getMonth()]} ${d.getDate()}`;
+}

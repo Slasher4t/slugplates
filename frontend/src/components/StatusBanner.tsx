@@ -22,3 +22,19 @@ export function EmptyState({ emoji = "🍽️", title, sub }: { emoji?: string; 
     </div>
   );
 }
+
+// Calm, user-facing failure with a way forward - never exposes request URLs,
+// HTTP status codes, or scraper/backend implementation details. `text`
+// should be a short, plain-language sentence (e.g. "Couldn't load today's
+// menu"), not the raw error message from the API client.
+export function ErrorState({ text, onRetry }: { text: string; onRetry: () => void }) {
+  return (
+    <div className="empty-state">
+      <span className="emoji">⚠️</span>
+      <div className="title">{text}</div>
+      <button className="pill-btn secondary" style={{ marginTop: 14 }} onClick={onRetry}>
+        Retry
+      </button>
+    </div>
+  );
+}

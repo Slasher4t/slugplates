@@ -1,74 +1,113 @@
 @import url("./tokens.css");
 
-/* One breakpoint drives the whole mobile <-> desktop switch (900px). Below
-   it: bottom tab bar, stacked single-column layout, matching the native iOS
-   app. At/above it: top nav, side-by-side grids, more breathing room. Same
-   components and CSS variables throughout - just laid out differently. */
+/* ==========================================================================
+   SlugPlates v2.0 - editorial, food-first visual language.
+
+   One breakpoint (900px) drives the whole mobile <-> desktop switch: below
+   it, bottom tab bar + single-column stacking; at/above it, top nav + wider
+   grids. Same components and CSS variables throughout - only layout changes,
+   never which components render (see the dark-mode-responsive-rule this
+   file follows throughout: a theme toggle never changes width, height, grid
+   behavior, typography scale, spacing, or chart dimensions - only tokens).
+   ========================================================================== */
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
 
 html, body, #root { height: 100%; }
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-body);
   font-size: 16px;
-  line-height: 1.4;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 button, input { font-family: inherit; color: inherit; }
 button { -webkit-appearance: none; appearance: none; background: none; border: none; cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 
+/* Page titles / display headings - the one place the serif shows up. */
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+.page-subtitle { font-size: 14px; color: var(--text-secondary); margin: 0 0 18px; }
+
+/* Visible keyboard focus everywhere - never color-only, never suppressed. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* Safety net: every icon in components/icons.tsx is a bare <svg> with no
    intrinsic width/height, so it renders at whatever size its nearest sized
-   ancestor happens to give it - which is "huge" wherever a use site forgets
-   to size it explicitly (as .hall-dropdown-item and .check both did). This
-   default keeps a forgotten icon merely icon-sized instead of blowing up the
-   layout; specific contexts (.add-btn svg, .tab-item svg, etc.) still
-   override it to their own size below. */
+   ancestor happens to give it. This default keeps a forgotten icon merely
+   icon-sized instead of blowing up the layout; specific contexts override. */
 svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 
 /* -------------------------------------------------------------------- */
-/* App shell                                                             */
+/* App shell / navigation                                                */
 /* -------------------------------------------------------------------- */
 
 .app-shell { min-height: 100%; display: flex; flex-direction: column; }
 
-/* Desktop top nav */
+/* Desktop top nav - plain surface bar with a hairline bottom border and an
+   underline active state, not a filled accent bar (that read as "generic
+   SaaS dashboard" - the opposite of this release's restrained direction). */
 .top-nav {
   display: none;
   align-items: center;
   justify-content: space-between;
-  background: var(--accent);
-  padding: 14px 28px;
+  background: var(--nav-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 16px clamp(20px, 4vw, 40px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
-.top-nav-brand { display: flex; align-items: center; gap: 9px; color: white; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
-
-/* The SVG source already bakes in Apple's ~22.37% squircle corner radius, so
-   this border-radius is just a defensive backstop (e.g. if the asset is ever
-   swapped for a plain square PNG) rather than doing the actual rounding. */
+.top-nav-brand {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--font-display);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
 .brand-icon { border-radius: 22.37%; flex-shrink: 0; display: block; }
-.top-nav-links { display: flex; gap: 24px; }
-.top-nav-link { color: rgba(255,255,255,0.72); font-size: 14px; font-weight: 500; padding-bottom: 3px; border-bottom: 2px solid transparent; transition: color 0.15s; }
-.top-nav-link.active { color: white; border-bottom-color: var(--rose); }
-.top-nav-theme { display: flex; gap: 6px; }
-
-/* Mobile title header */
-.mobile-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: max(env(safe-area-inset-top), 14px) 18px 6px;
-  background: var(--bg);
+.top-nav-links { display: flex; gap: 28px; }
+.top-nav-link {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  padding-bottom: 3px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
 }
-.mobile-header h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.top-nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
 
-.app-main { flex: 1; width: 100%; max-width: 1100px; margin: 0 auto; padding: 16px 18px 100px; }
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: max(env(safe-area-inset-top), 16px) 18px calc(88px + env(safe-area-inset-bottom));
+}
 
-/* Bottom tab bar (mobile only) */
+/* Bottom tab bar (mobile only) - fixed, safe-area aware so it clears the
+   home indicator on notched iPhones and in standalone PWA display. */
 .tab-bar {
   position: fixed;
   left: 0; right: 0; bottom: 0;
@@ -77,8 +116,10 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
   justify-content: space-around;
   padding-top: 8px;
   padding-bottom: max(env(safe-area-inset-bottom), 8px);
-  background: var(--surface);
-  border-top: 0.5px solid var(--border);
+  background: var(--nav-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
 }
 .tab-item {
   display: flex;
@@ -89,14 +130,19 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
   font-weight: 500;
   color: var(--text-tertiary);
   min-width: 56px;
+  min-height: 44px;
+  justify-content: center;
 }
 .tab-item.active { color: var(--accent); }
 .tab-item svg { width: 22px; height: 22px; }
 
 @media (min-width: 900px) {
   .top-nav { display: flex; }
-  .mobile-header, .tab-bar { display: none; }
-  .app-main { padding: 28px 32px 60px; }
+  .tab-bar { display: none; }
+  .app-main { padding: 32px clamp(24px, 4vw, 48px) 60px; }
+  /* Mobile-only page titles disappear on desktop, where each page grows its
+     own wider heading instead (see .today-date-heading etc. below). */
+  .today-title-mobile { display: none; }
 }
 
 /* -------------------------------------------------------------------- */
@@ -104,34 +150,35 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 /* -------------------------------------------------------------------- */
 
 .icon-btn {
-  width: 34px; height: 34px;
+  width: 40px; height: 40px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  color: var(--accent);
+  color: var(--text-secondary);
   flex-shrink: 0;
-  transition: transform 0.12s, background 0.15s;
+  transition: transform 0.12s, background 0.15s, color 0.15s;
 }
 .icon-btn:active { transform: scale(0.94); }
-.icon-btn svg { width: 16px; height: 16px; }
-.icon-btn.on-dark { background: rgba(255,255,255,0.14); border-color: transparent; color: white; }
+.icon-btn svg { width: 17px; height: 17px; }
+.icon-btn.active { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
 
 .pill-btn {
-  padding: 12px 18px;
-  border-radius: 100px;
+  padding: 13px 18px;
+  border-radius: 12px;
   font-size: 14.5px;
   font-weight: 600;
   text-align: center;
   transition: transform 0.12s, opacity 0.15s;
+  min-height: 44px;
 }
-.pill-btn:active { transform: scale(0.97); }
+.pill-btn:active { transform: scale(0.98); }
 .pill-btn.primary { background: var(--accent); color: white; }
 .pill-btn.secondary { background: var(--surface-sunken); color: var(--accent); }
 .pill-btn:disabled { opacity: 0.45; pointer-events: none; }
 
 .add-btn {
-  width: 25px; height: 25px;
+  width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--add-btn);
   color: white;
@@ -142,10 +189,9 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 .add-btn:active { transform: scale(0.85); }
 .add-btn svg { width: 13px; height: 13px; stroke-width: 3; }
 .add-btn.added { background: #34C759; }
-/* v1.1.0: nutrition still pending - matches .pill-btn:disabled's existing
-   convention. Not clickable (native `disabled`, not just styling) so a
-   pending item can't be logged with permanently-zero macros. */
-.add-btn:disabled { opacity: 0.45; pointer-events: none; }
+/* Nutrition still pending: not clickable (native `disabled`, not just
+   styling) so a pending item can't be logged with permanently-zero macros. */
+.add-btn:disabled { opacity: 0.4; pointer-events: none; }
 
 /* Segmented control (meal period, chart type) */
 .segmented {
@@ -159,13 +205,14 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
   flex: 1;
   position: relative;
   z-index: 1;
-  padding: 7px 4px;
+  padding: 9px 4px;
   font-size: 13px;
   font-weight: 600;
   text-align: center;
   border-radius: 8px;
   color: var(--text);
   white-space: nowrap;
+  min-height: 38px;
 }
 .segmented-thumb {
   position: absolute;
@@ -176,36 +223,71 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
   transition: transform 0.28s cubic-bezier(0.25, 1, 0.5, 1), width 0.28s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.chip-row { display: flex; gap: 6px; }
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
-  padding: 6px 14px;
+  padding: 8px 14px;
   border-radius: 100px;
   background: var(--surface-sunken);
   color: var(--text-secondary);
   transition: background 0.15s, color 0.15s;
+  min-height: 34px;
 }
 .chip.active { background: var(--accent); color: white; }
+
+/* A small on/off switch (Goals -> Preferences -> "Show Extras by default"). */
+.switch {
+  width: 46px; height: 27px;
+  border-radius: 100px;
+  background: var(--border);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.switch.on { background: var(--accent); }
+.switch-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 23px; height: 23px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  transition: transform 0.2s cubic-bezier(0.25,1,0.5,1);
+}
+.switch.on .switch-thumb { transform: translateX(19px); }
 
 /* -------------------------------------------------------------------- */
 /* Menu tab                                                              */
 /* -------------------------------------------------------------------- */
 
-.menu-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; position: relative; }
+.menu-controls { margin-bottom: 12px; }
+.menu-top-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; position: relative; flex-wrap: nowrap; }
+/* Hall picker gets first claim on available width and truncates rather than
+   wrapping to a second line (a long hall name - "Rachel Carson & Oakes" -
+   otherwise breaks this row's height on narrow phones); the date/search/
+   hamburger cluster never shrinks, since those all need to stay tappable. */
+.menu-top-row > div:first-child { min-width: 0; flex: 1 1 auto; }
+.menu-top-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 
 .hall-picker-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--control-radius);
+  border-radius: 100px;
   padding: 9px 14px;
   font-size: 14px;
   font-weight: 600;
+  min-height: 40px;
+  max-width: 100%;
+  white-space: nowrap;
 }
-.hall-picker-btn .chev { color: var(--add-btn); font-size: 10px; transition: transform 0.15s; }
+.hall-picker-btn > span:first-of-type,
+.hall-picker-btn { overflow: hidden; }
+.hall-picker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.hall-picker-btn .chev { color: var(--text-tertiary); font-size: 10px; transition: transform 0.15s; }
 .hall-picker-btn.open .chev { transform: rotate(180deg); }
 
 .hall-dropdown {
@@ -224,30 +306,46 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 @keyframes popIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .hall-dropdown-item {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 11px 14px;
+  padding: 12px 14px;
   font-size: 14px;
   font-weight: 500;
-  border-bottom: 0.5px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  min-height: 44px;
 }
 .hall-dropdown-item:last-child { border-bottom: none; }
 .hall-dropdown-item:active { background: var(--surface-sunken); }
 .hall-dropdown-item.selected { color: var(--accent); font-weight: 700; }
 
-.meal-tabs-row { margin-bottom: 16px; }
+.meal-tabs-row { margin-bottom: 10px; }
 .meal-tabs-row .segmented { max-width: 360px; }
 
 .date-field {
   border: 1px solid var(--border);
   background: var(--surface);
-  border-radius: var(--control-radius);
-  padding: 8px 10px;
+  border-radius: 100px;
+  padding: 9px 12px;
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
+  min-height: 40px;
 }
 
-/* Mobile: single flat column, station order as given - MenuList only ever
-   renders this variant below the 900px breakpoint. */
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-sunken);
+  border-radius: var(--control-radius);
+  padding: 10px 12px;
+  margin-top: 10px;
+  animation: slideDown 0.15s ease;
+}
+@keyframes slideDown { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.search-row svg { color: var(--text-tertiary); width: 16px; height: 16px; }
+.search-input { border: none; background: none; outline: none; font-size: 15px; width: 100%; color: var(--text); }
+.search-input::placeholder { color: var(--text-tertiary); }
+
+/* Mobile: single flat column, station order as given. */
 .menu-grid { display: block; }
 
 /* Desktop (>=900px, matching MenuList's DESKTOP_BREAKPOINT constant): two
@@ -257,38 +355,99 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
    next to a tall one left a large empty gap below the short one before the
    next row could start. flex here gives each column its own layout context;
    a tall station in one column can't influence the other column's height at
-   all. See MenuList.tsx's distributeColumns() for how stations are actually
-   split across the two columns (whole stations only, height-balanced). */
-.menu-columns { display: flex; gap: 22px; align-items: flex-start; }
+   all. PRESERVED from v1.1 - see MenuList.tsx's distributeColumns(). */
+.menu-columns { display: flex; gap: clamp(24px, 3vw, 48px); align-items: flex-start; }
 .menu-column { flex: 1 1 0; min-width: 0; }
 
-.station-section { margin-bottom: 18px; }
+.station-section { margin-bottom: 22px; }
 .station-label {
   font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
   color: var(--text-secondary);
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
+/* Flat rows with a hairline divider, not a bordered card per row - the
+   editorial "subtle dividers, minimal cards" direction. */
 .food-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 11px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--control-radius);
-  margin-bottom: 7px;
+  gap: 12px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+  min-height: 44px;
+  transition: background 0.1s;
 }
+.station-section .food-row:last-child { border-bottom: none; }
+.food-row:active { background: var(--surface-sunken); }
 .food-row-info { min-width: 0; }
-.food-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.food-meta { font-size: 11.5px; color: var(--text-secondary); margin-top: 2px; }
+.food-name { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.food-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+/* Extras (condiments/sauces/small toppings) - a single collapsed section
+   below the real food, not scattered per-station. See utils/extras.ts. */
+.extras-section { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 10px; }
+.extras-toggle {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  padding: 10px 2px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  min-height: 44px;
+}
+.extras-count {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 100px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.extras-chevron { margin-left: auto; transition: transform 0.2s; width: 15px; height: 15px; }
+.extras-chevron.open { transform: rotate(180deg); }
+.extras-body { animation: slideDown 0.15s ease; }
 
 /* -------------------------------------------------------------------- */
-/* Location switcher sheet (hamburger)                                   */
+/* Food detail sheet                                                     */
+/* -------------------------------------------------------------------- */
+
+.detail-sheet { position: relative; }
+.detail-close-x {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  z-index: 1;
+}
+.detail-close-x svg { width: 14px; height: 14px; }
+
+.detail-name { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 8px 0 2px; padding-right: 40px; }
+.detail-sub { font-size: 13.5px; color: var(--text-secondary); margin: 0 0 18px; }
+.detail-status { font-size: 14px; color: var(--text-secondary); font-style: italic; padding: 8px 0 4px; }
+
+.detail-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 16px; }
+.detail-stat-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--accent); margin-bottom: 3px;
+}
+.detail-stat-value { font-size: 17px; font-weight: 600; }
+.detail-icons { font-size: 14px; font-weight: 500; }
+
+/* -------------------------------------------------------------------- */
+/* Sheets (location switcher, food detail) - bottom sheet on mobile,      */
+/* centered dialog on desktop                                            */
 /* -------------------------------------------------------------------- */
 
 .sheet-scrim {
@@ -305,7 +464,7 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
   z-index: 41;
   max-width: 480px;
   margin: 0 auto;
-  max-height: 80vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -323,40 +482,42 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 @media (min-width: 900px) { .sheet-grabber { display: none; } }
 
 .sheet-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px 6px; flex-shrink: 0; }
-.sheet-header h2 { font-size: 18px; font-weight: 700; margin: 0; }
-.text-btn { color: var(--accent); font-size: 15px; font-weight: 600; }
+.sheet-header h2 { font-family: var(--font-display); font-size: 19px; font-weight: 600; margin: 0; }
+.text-btn { color: var(--accent); font-size: 15px; font-weight: 600; min-height: 44px; padding: 0 4px; }
 .text-btn:active { opacity: 0.5; }
 
 .sheet-body { overflow-y: auto; padding: 6px 20px 20px; }
+.sheet-footer { padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border-soft); flex-shrink: 0; }
 
 .location-group-label {
   font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
   color: var(--text-secondary);
   margin: 16px 0 6px;
 }
 .location-group-label:first-child { margin-top: 4px; }
 .location-item {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 4px;
+  width: 100%;
+  padding: 13px 4px;
   font-size: 15px;
   font-weight: 500;
-  border-bottom: 0.5px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  min-height: 44px;
 }
 .location-item:last-child { border-bottom: none; }
 .location-item.selected { color: var(--accent); font-weight: 700; }
 .location-item .check { color: var(--accent); }
 
 /* -------------------------------------------------------------------- */
-/* Loading / empty states                                                */
+/* Loading / empty / error states                                        */
 /* -------------------------------------------------------------------- */
 
 .status-banner {
   display: flex; align-items: center; gap: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--surface-alt);
   border-radius: var(--card-radius);
   padding: 13px 16px;
   margin-bottom: 14px;
@@ -373,105 +534,157 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.empty-state { text-align: center; padding: 44px 20px; color: var(--text-secondary); }
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-secondary); }
 .empty-state .emoji { font-size: 36px; display: block; margin-bottom: 10px; }
-.empty-state .title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.empty-state .title { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
 .empty-state .sub { font-size: 13.5px; }
+
+/* Skeleton rows - shaped like the real food-row they stand in for, not a
+   centered spinner, so the page shell renders immediately. */
+.skeleton-row { pointer-events: none; }
+.skeleton-bar { height: 12px; border-radius: 4px; background: var(--surface-sunken); animation: shimmer 1.3s ease-in-out infinite; }
+.skeleton-bar-name { width: 62%; margin-bottom: 7px; }
+.skeleton-bar-meta { width: 38%; height: 9px; }
+.skeleton-circle { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-sunken); animation: shimmer 1.3s ease-in-out infinite; flex-shrink: 0; }
+@keyframes shimmer { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
 /* -------------------------------------------------------------------- */
 /* Today tab                                                             */
 /* -------------------------------------------------------------------- */
 
+.today-date-heading { display: none; }
+@media (min-width: 900px) { .today-date-heading { display: block; } }
+
 .today-layout { display: block; }
 @media (min-width: 900px) {
-  .today-layout { display: grid; grid-template-columns: 300px 1fr; gap: 30px; align-items: start; }
+  .today-layout { display: grid; grid-template-columns: 300px 1fr; gap: clamp(24px, 3vw, 40px); align-items: start; }
 }
 
-.ring-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px 20px;
-  text-align: center;
+.ring-card { text-align: center; padding: 8px 0 0; }
+@media (min-width: 900px) {
+  .ring-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 22px; }
 }
-.ring-svg { width: 180px; height: 180px; margin: 0 auto; }
-@media (min-width: 900px) { .ring-svg { width: 240px; height: 240px; } }
+.ring-svg { width: 168px; height: 168px; margin: 0 auto; }
+@media (min-width: 900px) { .ring-svg { width: 220px; height: 220px; } }
 
-.ring-cal-line { font-size: 17px; font-weight: 700; margin-top: 14px; }
-.ring-cal-line .of { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.ring-cal-line { font-size: 32px; font-weight: 700; margin-top: 14px; letter-spacing: -0.01em; }
+.ring-cal-value { font-variant-numeric: tabular-nums; }
+.ring-cal-line .of { font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+.ring-status { font-size: 13px; color: var(--text-secondary); margin: 4px 0 0; }
+.ring-status.over { color: var(--danger); }
+.ring-status::before { content: "● "; font-size: 8px; color: var(--accent); }
+.ring-status.over::before { color: var(--danger); }
 
-.macro-legend { display: flex; justify-content: space-around; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-soft); }
-.macro-legend-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.macro-legend-dot { width: 9px; height: 9px; border-radius: 50%; }
-.macro-legend-val { font-size: 14px; font-weight: 700; }
-.macro-legend-lbl { font-size: 10.5px; color: var(--text-secondary); }
+.macro-progress { margin-top: 22px; text-align: left; }
+.macro-progress-row + .macro-progress-row { margin-top: 14px; }
+.macro-progress-label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+.macro-progress-value { font-variant-numeric: tabular-nums; color: var(--text-secondary); font-weight: 500; }
+.macro-progress-value .of { color: var(--text-tertiary); }
+.macro-progress-track { height: 6px; background: var(--surface-sunken); border-radius: 100px; overflow: hidden; }
+.macro-progress-fill { height: 100%; border-radius: 100px; transition: width 0.4s cubic-bezier(0.25,1,0.5,1); }
+
+.today-food-header { display: flex; justify-content: space-between; align-items: baseline; margin: 28px 0 12px; }
+@media (min-width: 900px) { .today-food-header { margin-top: 0; } }
+.section-heading { font-family: var(--font-display); font-size: 17px; font-weight: 600; }
+.today-remaining-inline { font-size: 12.5px; color: var(--text-secondary); }
 
 .meal-section { margin-bottom: 20px; }
 .meal-section-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-.meal-section-title { font-size: 15px; font-weight: 700; }
+.meal-section-title { font-size: 14px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
 .meal-section-cal { font-size: 12.5px; color: var(--text-secondary); }
 
-.log-row-wrap { position: relative; overflow: hidden; border-radius: 9px; margin-bottom: 6px; }
 .log-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 9px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: 9px;
-  font-size: 12.5px;
-  transition: transform 0.18s ease;
-  position: relative;
-  z-index: 1;
+  gap: 10px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--border-soft);
+  min-height: 44px;
 }
-.log-row-wrap.revealed .log-row { transform: translateX(-64px); }
-.log-row-name { font-weight: 600; }
-.log-row-meta { color: var(--text-secondary); margin-left: 5px; }
-.log-row-delete {
-  position: absolute;
-  top: 0; right: 0; bottom: 0;
-  width: 64px;
-  background: var(--danger);
-  color: white;
+.meal-section .log-row:last-child { border-bottom: none; }
+.log-row-info { min-width: 0; }
+.log-row-name { font-size: 14px; font-weight: 600; }
+.log-row-meta { font-size: 12px; color: var(--text-secondary); margin-top: 1px; }
+.log-row-remove {
+  width: 30px; height: 30px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600;
-  z-index: 0;
+  color: var(--text-tertiary);
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
 }
-/* Desktop bonus: reveal via hover too, without needing a tap first */
-@media (hover: hover) {
-  .log-row-wrap:hover .log-row { transform: translateX(-64px); }
-}
+.log-row-remove:hover, .log-row-remove:active { color: var(--danger); background: var(--surface-sunken); }
+.log-row-remove svg { width: 20px; height: 20px; }
 
-.empty-line { font-size: 12.5px; font-style: italic; color: var(--text-tertiary); padding: 6px 2px; }
+.empty-line { font-size: 13px; font-style: italic; color: var(--text-tertiary); padding: 8px 2px; }
+
+.remaining-card {
+  background: var(--surface-alt);
+  border-radius: var(--card-radius);
+  padding: 16px 18px;
+  margin-top: 20px;
+}
+.remaining-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 4px; }
+.remaining-value { font-size: 15px; font-weight: 600; }
 
 /* -------------------------------------------------------------------- */
 /* Goals tab                                                             */
 /* -------------------------------------------------------------------- */
 
-.goals-form { max-width: 420px; }
-.field-group { margin-bottom: 16px; }
-.field-label {
-  font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
-  color: var(--text-secondary); margin-bottom: 6px;
+.goals-page { max-width: 480px; }
+.group-label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-secondary); margin: 24px 0 8px;
 }
-.field-input-row {
-  display: flex; align-items: center; justify-content: space-between;
+.group-label:first-of-type { margin-top: 4px; }
+
+.grouped-card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--control-radius);
-  padding: 12px 14px;
+  border-radius: var(--card-radius);
+  overflow: hidden;
 }
-.field-input-row input {
+.grouped-card-pad { padding: 14px; }
+
+.goal-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  min-height: 44px;
+}
+.grouped-card .goal-row:last-child { border-bottom: none; }
+.goal-row-label { font-size: 15px; font-weight: 500; }
+.goal-row-input { display: flex; align-items: baseline; gap: 5px; }
+.goal-row-input input {
   border: none; background: none; outline: none;
   font-size: 16px; font-weight: 600; color: var(--text);
-  width: 100%;
+  text-align: right;
+  width: 70px;
 }
-.field-unit { color: var(--text-secondary); font-weight: 500; font-size: 13px; flex-shrink: 0; margin-left: 8px; }
+.goal-row-unit { color: var(--text-secondary); font-weight: 500; font-size: 13px; }
+
+.pref-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 15px;
+  font-weight: 500;
+  min-height: 44px;
+}
+.grouped-card .pref-row:last-child { border-bottom: none; }
+.pref-row-nav { color: var(--text); }
+.pref-row-nav > span:first-child { flex-shrink: 0; white-space: nowrap; }
+.pref-row-value {
+  color: var(--accent);
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .field-note {
   font-size: 12.5px; color: var(--text-secondary);
-  background: var(--surface-alt);
-  border-radius: var(--control-radius);
-  padding: 12px 14px;
-  margin-top: 4px;
+  padding: 12px 2px 0;
   line-height: 1.6;
 }
 
@@ -479,17 +692,70 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 /* History tab                                                           */
 /* -------------------------------------------------------------------- */
 
-.hist-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-.hist-controls .segmented { width: 160px; flex-shrink: 0; }
+.history-page {}
+.history-subtitle { display: none; }
+@media (min-width: 900px) { .history-subtitle { display: block; } }
+
+.hist-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.hist-controls .segmented { width: 148px; flex-shrink: 0; }
+
+.metric-select { position: relative; margin-left: auto; }
+.metric-select-btn {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+  background: var(--surface-sunken);
+  padding: 8px 12px;
+  border-radius: 100px;
+  min-height: 36px;
+}
+.metric-select-btn svg { width: 12px; height: 12px; transition: transform 0.15s; }
+.metric-select-btn svg.open { transform: rotate(180deg); }
+.metric-dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 15;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px var(--shadow);
+  overflow: hidden;
+  min-width: 150px;
+  animation: popIn 0.15s ease;
+}
+.metric-dropdown-item { display: block; width: 100%; text-align: left; padding: 11px 14px; font-size: 13.5px; font-weight: 500; min-height: 40px; }
+.metric-dropdown-item:active { background: var(--surface-sunken); }
+.metric-dropdown-item.selected { color: var(--accent); font-weight: 700; }
+
+.hist-stats { margin-bottom: 12px; }
+.hist-stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+.hist-stat-value { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+.hist-stat-value .of { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
 
 .chart-card {
   background: var(--surface-alt);
-  border: 1px solid var(--border-soft);
   border-radius: 16px;
-  padding: 18px 14px 10px;
+  padding: 18px 6px 10px;
+  /* Charts respond to this container's width via Recharts'
+     ResponsiveContainer (width="100%") - never a fixed pixel width, so no
+     clipping/overflow at any of the tested breakpoints (375-1920px). */
+  overflow: hidden;
 }
-.chart-summary { font-size: 12.5px; color: var(--text-secondary); padding: 10px 6px 0; }
+.chart-summary { font-size: 12.5px; color: var(--text-secondary); padding: 10px 10px 0; }
 .chart-summary b { color: var(--text); }
+
+.chart-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+.chart-tooltip-label { font-weight: 700; margin-bottom: 2px; }
+
+.daily-logs-grid { display: grid; gap: 1px; background: var(--border-soft); border-radius: var(--card-radius); overflow: hidden; }
+@media (min-width: 900px) { .daily-logs-grid { grid-template-columns: 1fr 1fr; } }
+.daily-log-row { background: var(--surface); padding: 13px 16px; }
+.daily-log-heading { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.daily-log-meta { font-size: 12px; color: var(--text-secondary); }
 
 /* -------------------------------------------------------------------- */
 /* Toast                                                                  */
@@ -497,7 +763,7 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 
 .toast {
   position: fixed;
-  left: 50%; bottom: 90px;
+  left: 50%; bottom: calc(90px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   background: #1C1C1E;
   color: white;
@@ -511,3 +777,11 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (min-width: 900px) { .toast { bottom: 28px; } }
+
+/* -------------------------------------------------------------------- */
+/* Wide-screen containers stay comfortably centered, never full-bleed text */
+/* -------------------------------------------------------------------- */
+
+@media (min-width: 1440px) {
+  .app-main { max-width: 1240px; }
+}

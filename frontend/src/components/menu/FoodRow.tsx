@@ -5,14 +5,16 @@ import { CheckIcon, PlusIcon } from "../icons";
 interface Props {
   item: FoodItem;
   onAdd: (item: FoodItem) => void;
+  onOpenDetail: (item: FoodItem) => void;
 }
 
-export function FoodRow({ item, onAdd }: Props) {
+export function FoodRow({ item, onAdd, onOpenDetail }: Props) {
   const [justAdded, setJustAdded] = useState(false);
   const cal = item.nutrition.calories;
   const protein = item.nutrition.protein_g;
 
-  function handleAdd() {
+  function handleAdd(e: React.MouseEvent) {
+    e.stopPropagation(); // quick-add must not also open the detail sheet
     onAdd(item);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1200);
@@ -35,12 +37,12 @@ export function FoodRow({ item, onAdd }: Props) {
   if (cal != null || protein != null) {
     meta = metaParts.join(" · ");
   } else {
-    const status = item.nutrition.pending ? "Loading nutrition…" : "No nutrition data";
+    const status = item.nutrition.pending ? "Loading nutrition…" : "Nutrition unavailable";
     meta = item.portion ? `${status} · ${item.portion}` : status;
   }
 
   return (
-    <div className="food-row">
+    <div className="food-row" onClick={() => onOpenDetail(item)} role="button" tabIndex={0}>
       <div className="food-row-info">
         <div className="food-name">{item.name}</div>
         <div className="food-meta">{meta}</div>
