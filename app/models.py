@@ -12,6 +12,15 @@ class NutritionInfo(BaseModel):
     sodium_mg: Optional[float] = None
     serving_size: Optional[str] = None  # e.g. "3 oz" - as FoodPro reports it
 
+    # v1.1.0: distinguishes "nutrition not fetched yet, check back soon" from
+    # "confirmed - FoodPro has no label for this recipe" - both look like an
+    # all-null NutritionInfo otherwise. Additive field, defaults to False, so
+    # any client (older frontend build, iOS, a raw fixture) that doesn't know
+    # about it yet parses exactly as before and is not misled by omission -
+    # the previous behavior (silently treat missing as "no data") is what you
+    # get by ignoring this field, which was already always a safe reading.
+    pending: bool = False
+
     @property
     def has_data(self) -> bool:
         return self.calories is not None

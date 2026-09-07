@@ -16,6 +16,11 @@ export interface NutritionInfo {
   sugar_g: number | null;
   sodium_mg: number | null;
   serving_size: string | null;
+  // v1.1.0: true = not enriched yet, a later request may fill it in. false +
+  // all-null fields = FoodPro confirmed this recipe has no label - distinct
+  // states that used to look identical on the wire. See NutritionInfo in
+  // app/models.py.
+  pending: boolean;
 }
 
 export interface FoodItem {

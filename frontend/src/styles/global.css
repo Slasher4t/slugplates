@@ -142,6 +142,10 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
 .add-btn:active { transform: scale(0.85); }
 .add-btn svg { width: 13px; height: 13px; stroke-width: 3; }
 .add-btn.added { background: #34C759; }
+/* v1.1.0: nutrition still pending - matches .pill-btn:disabled's existing
+   convention. Not clickable (native `disabled`, not just styling) so a
+   pending item can't be logged with permanently-zero macros. */
+.add-btn:disabled { opacity: 0.45; pointer-events: none; }
 
 /* Segmented control (meal period, chart type) */
 .segmented {
@@ -242,12 +246,23 @@ svg { display: block; width: 18px; height: 18px; flex-shrink: 0; }
   color: var(--text);
 }
 
+/* Mobile: single flat column, station order as given - MenuList only ever
+   renders this variant below the 900px breakpoint. */
 .menu-grid { display: block; }
-@media (min-width: 900px) {
-  .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
-}
 
-.station-section { margin-bottom: 18px; break-inside: avoid; }
+/* Desktop (>=900px, matching MenuList's DESKTOP_BREAKPOINT constant): two
+   independent vertical stacks, NOT a 2-column CSS Grid. A shared-row-track
+   grid was the v1.0 desktop menu-gap bug - two grid items in the same row
+   share that row's height (sized to the tallest one), so a short station
+   next to a tall one left a large empty gap below the short one before the
+   next row could start. flex here gives each column its own layout context;
+   a tall station in one column can't influence the other column's height at
+   all. See MenuList.tsx's distributeColumns() for how stations are actually
+   split across the two columns (whole stations only, height-balanced). */
+.menu-columns { display: flex; gap: 22px; align-items: flex-start; }
+.menu-column { flex: 1 1 0; min-width: 0; }
+
+.station-section { margin-bottom: 18px; }
 .station-label {
   font-size: 11.5px;
   font-weight: 700;

@@ -150,6 +150,32 @@ LABEL_TIMEOUT_MS = int(os.getenv("FOODPRO_LABEL_TIMEOUT_MS", "15000"))
 RETRY_BACKOFF_SECONDS = 2.0
 MAX_CONSECUTIVE_FAILURES = 8
 
+# --------------------------------------------------------------------------
+# v1.1.0: decoupled menu delivery vs. nutrition enrichment
+# --------------------------------------------------------------------------
+# A cold hall can have 200-260 items, each needing its own label.aspx fetch -
+# fetching all of them before returning the menu is what made a cold request
+# take minutes (measured on production: ~247s for 260 items). Instead, a
+# request enriches synchronously only up to this time budget, then hands
+# whatever's left to a background task and returns the menu immediately -
+# see scrape_day()/_spawn_background_enrichment() in foodpro_scraper.py.
+SYNC_ENRICHMENT_BUDGET_SECONDS = float(os.getenv("FOODPRO_SYNC_ENRICH_BUDGET", "6.0"))
+
+# --------------------------------------------------------------------------
+# v1.1.0: startup prewarm
+# --------------------------------------------------------------------------
+# Render's disk is not persistent across deploys (confirmed in production -
+# cache_stats() reads 0 cached recipes/menus right after a fresh deploy), so
+# every boot means every hall is cold again. On startup, fire a single
+# one-shot (not recurring, not a loop) background scrape of today's
+# current-meal-period menu for the app's default hall - the one combination
+# essentially every visitor hits first - so it has a head start instead of
+# starting only when the first real request asks for it. Never awaited by
+# startup(), never blocks readiness, and any failure is swallowed (see
+# _prewarm()) - this is a nice-to-have, not something a real request should
+# ever wait on or be broken by.
+PREWARM_ON_STARTUP = os.getenv("PREWARM_ON_STARTUP", "1").lower() in ("1", "true", "yes")
+
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 "

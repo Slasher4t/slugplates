@@ -34,16 +34,26 @@ import asyncio
 import datetime
 import html
 import json
+import logging
 import os
 import re
 import time
 import urllib.parse
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup
 
 from app import config
 from app.models import FoodItem, NutritionInfo
+
+# One line per scrape/enrichment/prewarm event - phase timings so production
+# logs can actually show where time goes, without logging every individual
+# label fetch (hundreds per cold hall - that would just be noise). Uses
+# basicConfig's own "no-op if a handler already exists" behavior, so this is
+# safe to call regardless of whatever uvicorn's own logging setup does.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger("slugeats.scraper")
 
 # --------------------------------------------------------------------------
 # URL building
@@ -207,16 +217,50 @@ def _num(text: str, pattern: str) -> Optional[float]:
         return None
 
 
+# Confirmed live against nutrition.sa.ucsc.edu (2026-09): a recipe with no
+# published label renders as literally nothing but this one line - no
+# "Nutrition Facts" heading, no Serving Size, no Calories line at all.
+_NOT_AVAILABLE_PHRASE = "not available for this recipe"
+
+# A distinct, separately-confirmed pattern: some recipes (station/build-your-
+# own concepts like "Pasta Bar", "Rice Bowl Bar") DO have a normal, fully
+# structured label - Nutrition Facts, Serving Size, a real Calories line -
+# with every field genuinely reported as 0, and FoodPro says so explicitly
+# in its own INGREDIENTS line. This is FoodPro's own confirmation that the
+# all-zero result is deliberate, not a parser gap - see _looks_suspicious().
+_INTENTIONALLY_BLANK_PHRASE = "intentionally left blank"
+
+
 def parse_label(page_text: str, page_html: str = "") -> dict[str, Any]:
-    """Scrape one label.aspx page into a plain dict (JSON-cacheable)."""
+    """
+    Scrape one label.aspx page into a plain dict (JSON-cacheable).
+
+    Sets data["status"] to exactly one of:
+      "confirmed_no_label" - the page itself says so (_NOT_AVAILABLE_PHRASE).
+        This will never resolve; no point re-enriching it.
+      "success" - a numeric Calories value was found, whatever it is
+        (including a genuine 0 - see _looks_suspicious for that case).
+      "parse_failed" - the page loaded, didn't say "not available", but no
+        Calories value could be extracted anyway: an unexpected page
+        (session/redirect/error page slipping past the HTTP-status check) or
+        a real label in a markup shape these patterns don't handle. This
+        must NOT be treated as equivalent to "confirmed no label" - callers
+        (see RecipeCache.needs_enrichment) keep retrying it rather than
+        caching it as final truth. Investigated live against 257 real
+        recipes for this audit: zero instances found - but the code must
+        not silently collapse this into "no data" if one ever occurs.
+    """
     text = _clean(page_text)
+    lower = text.lower()
 
     data: dict[str, Any] = {key: _num(text, pat) for key, pat in _LABEL_PATTERNS.items()}
 
-    # A few recipes (whole fruit, some bulk items) legitimately have no label -
-    # the page just says so. Record that, so we cache the "no data" answer
-    # instead of re-scraping the item on every run.
-    data["available"] = "not available for this recipe" not in text.lower()
+    if _NOT_AVAILABLE_PHRASE in lower:
+        data["status"] = "confirmed_no_label"
+    elif data["calories"] is not None:
+        data["status"] = "success"
+    else:
+        data["status"] = "parse_failed"
 
     serving = re.search(r"Serving\s+Size\s*(.*?)\s*Calories", text, re.IGNORECASE)
     data["serving_size"] = _clean(serving.group(1)) if serving else None
@@ -239,9 +283,101 @@ def parse_label(page_text: str, page_html: str = "") -> dict[str, Any]:
     return data
 
 
+def _looks_suspicious(record: dict[str, Any]) -> Optional[str]:
+    """
+    Conservative, log-only sanity check for a "success" parse - never changes
+    what gets cached or returned, only flags it for a human to check against
+    FoodPro's own source. Returns a short reason string, or None if nothing
+    looks off.
+
+    Deliberately narrow: a real, non-trivial serving size alongside every
+    core macro field being exactly zero AND FoodPro not itself explaining it
+    (intentionally-left-blank recipes are self-explained, not suspicious;
+    zero-calorie drinks/seasonings/condiments are common and real). This is
+    detection, not correction - it never fabricates or overrides a value.
+    """
+    if record.get("status") != "success":
+        return None
+    if _INTENTIONALLY_BLANK_PHRASE in (record.get("ingredients") or "").lower():
+        return None
+    serving_size = (record.get("serving_size") or "").strip()
+    if not serving_size:
+        return None
+    macros = (record.get("calories"), record.get("protein_g"), record.get("carbs_g"), record.get("fat_g"))
+    if all(v == 0 for v in macros):
+        return f"all-zero macros with serving_size={serving_size!r}"
+    return None
+
+
+def _log_parse_result(
+    rec_num: str, record: dict[str, Any], hall_slug: str, name_by_rec_num: Optional[dict[str, str]]
+) -> None:
+    """
+    One line per freshly-fetched label, only when something's worth a human's
+    attention - a normal successful parse of an ordinary item logs nothing
+    here (that would be noise on every cold hall). Never logs raw HTML - just
+    enough identifying information to go look the recipe up: name (when
+    known), rec_num, hall, and why it was flagged.
+    """
+    name = (name_by_rec_num or {}).get(rec_num, "?")
+    status = record.get("status")
+    if status == "parse_failed":
+        logger.warning(
+            "PARSE_FAILED name=%r rec_num=%s hall=%s - label loaded but no Calories value found; "
+            "will retry on a later request rather than being treated as confirmed-absent",
+            name, rec_num, hall_slug,
+        )
+        return
+    if status == "success":
+        reason = _looks_suspicious(record)
+        if reason:
+            logger.info("SUSPICIOUS name=%r rec_num=%s hall=%s reason=%s", name, rec_num, hall_slug, reason)
+
+
+def _record_status(record: dict[str, Any]) -> str:
+    """
+    "success" | "confirmed_no_label" | "parse_failed", for any record shape.
+
+    Cache records written by this version of the scraper already carry
+    "status" directly (see parse_label). Records written by the pre-audit
+    version instead carried a bare "available" boolean, which collapsed
+    "confirmed no label" and "parser couldn't find Calories" into the same
+    False-shaped bucket - this reinterprets those under the new, more honest
+    three-way split, so an old cache file self-heals (a previously-stuck
+    parse_failed masquerading as confirmed-absent becomes retryable again)
+    without needing to wipe or migrate the file on disk.
+    """
+    status = record.get("status")
+    if status is not None:
+        return status
+    if record.get("available") is False:
+        return "confirmed_no_label"
+    if record.get("calories") is not None:
+        return "success"
+    return "parse_failed"
+
+
 def _nutrition_from(record: Optional[dict[str, Any]]) -> NutritionInfo:
-    if not record:
-        return NutritionInfo()
+    """
+    Build the wire NutritionInfo for one item's recipe cache record.
+
+    Three states a caller must not conflate (see NutritionInfo.pending's
+    docstring in models.py, and _record_status above):
+      record is None, or status == "parse_failed": pending=True - nobody has
+        a final answer yet, a later request may. Treating a parse failure
+        the same as "never scraped" (rather than as "confirmed absent") is
+        deliberate: it keeps getting retried instead of being treated as
+        permanent recipe truth on the strength of a single bad response.
+      status == "confirmed_no_label": pending=False, all null - FoodPro
+        itself says this recipe has no label. This will never resolve.
+      status == "success": pending=False, real values (however implausible
+        they may look - see _looks_suspicious, which only logs, never
+        changes what's returned here).
+    """
+    if not record or _record_status(record) == "parse_failed":
+        return NutritionInfo(pending=True)
+    if _record_status(record) == "confirmed_no_label":
+        return NutritionInfo(pending=False)
     return NutritionInfo(
         calories=record.get("calories"),
         protein_g=record.get("protein_g"),
@@ -251,6 +387,7 @@ def _nutrition_from(record: Optional[dict[str, Any]]) -> NutritionInfo:
         sugar_g=record.get("sugar_g"),
         sodium_mg=record.get("sodium_mg"),
         serving_size=record.get("serving_size"),
+        pending=False,
     )
 
 
@@ -293,6 +430,23 @@ class RecipeCache:
     def get(self, rec_num: str) -> Optional[dict]:
         return self._data.get(rec_num)
 
+    def needs_enrichment(self, rec_num: str) -> bool:
+        """
+        True if this recipe has no *final* answer yet: never scraped, or the
+        one cached attempt was "parse_failed" (page loaded, wasn't confirmed
+        absent, but no Calories value could be extracted - see parse_label).
+        "success" and "confirmed_no_label" are the only final states; a
+        parse_failed record is deliberately never final, so it keeps getting
+        retried on the next enrichment pass rather than being treated as
+        permanent recipe truth on the strength of one bad response. Also
+        correctly reinterprets pre-audit cache records that only ever had an
+        "available" boolean - see _record_status.
+        """
+        record = self._data.get(rec_num)
+        if record is None:
+            return True
+        return _record_status(record) == "parse_failed"
+
     def put(self, rec_num: str, record: dict) -> None:
         self._data[rec_num] = record
         self._dirty = True
@@ -334,6 +488,15 @@ class FoodProScraper:
         self._lock = asyncio.Lock()
         self.recipes = RecipeCache()
 
+        # v1.1.0: background nutrition enrichment (see scrape_day / _spawn_
+        # background_enrichment). _enriching claims rec_nums the moment a
+        # background task takes them on, so a second near-simultaneous
+        # request can't schedule duplicate work for the same recipes.
+        # _background_tasks holds strong refs so asyncio can't GC a task
+        # that's still running (the standard "fire and forget" gotcha).
+        self._enriching: set[str] = set()
+        self._background_tasks: set[asyncio.Task] = set()
+
     # -- browser lifecycle ---------------------------------------------------
 
     async def start(self) -> None:
@@ -350,6 +513,11 @@ class FoodProScraper:
         self._current_location = None
 
     async def close(self) -> None:
+        # Cancel rather than await: a background enrichment task mid-request
+        # against a browser we're about to close would just raise once the
+        # page disappears under it - cancelling is the clean version of that.
+        for task in list(self._background_tasks):
+            task.cancel()
         self.recipes.flush()
         for closer in (self._context, self._browser):
             if closer is not None:
@@ -434,44 +602,234 @@ class FoodProScraper:
                 return None
         return None
 
+    async def _enrich_missing(
+        self,
+        hall_slug: str,
+        date_str: str,
+        rec_nums: list[str],
+        budget_seconds: Optional[float],
+        name_by_rec_num: Optional[dict[str, str]] = None,
+    ) -> int:
+        """
+        Fetch nutrition labels for the given rec_nums, in order, until either
+        the list is exhausted, budget_seconds elapses, MAX_LABELS_PER_RUN is
+        hit, or too many fetches fail in a row (FoodPro having a bad moment -
+        stop pressing it, pick up later).
+
+        IMPORTANT: this assumes the caller already holds self._lock for the
+        entire call - that's only correct for the *synchronous* phase in
+        scrape_day(), which is bounded by SYNC_ENRICHMENT_BUDGET_SECONDS and
+        is part of fulfilling the very request that's already holding the
+        lock's turn. It is NOT used for background enrichment (see
+        _run_background_enrichment below) - holding this lock for an entire
+        unbounded background batch (proven in testing: 107s for 244 items)
+        is exactly what let one background batch block every other
+        hall/meal's request, and even startup prewarming, behind it.
+
+        Always re-checks the recipe cache before fetching: another caller
+        (a previous background pass, or another request) may have already
+        filled a given rec_num in since this list was built. Returns how
+        many labels were actually fetched, for logging.
+        """
+        start = time.monotonic()
+        fetched = 0
+        consecutive_failures = 0
+        for rec_num in rec_nums:
+            if not self.recipes.needs_enrichment(rec_num):
+                continue
+            if budget_seconds is not None and (time.monotonic() - start) >= budget_seconds:
+                break
+            if fetched >= config.MAX_LABELS_PER_RUN:
+                break
+            record = await self._scrape_label(rec_num, hall_slug, date_str)
+            if record is None:
+                consecutive_failures += 1
+                if consecutive_failures >= config.MAX_CONSECUTIVE_FAILURES:
+                    break
+                continue
+            consecutive_failures = 0
+            self.recipes.put(rec_num, record)
+            _log_parse_result(rec_num, record, hall_slug, name_by_rec_num)
+            fetched += 1
+        self.recipes.flush()
+        return fetched
+
+    async def _run_background_enrichment(
+        self,
+        hall_slug: str,
+        date_str: str,
+        rec_nums: list[str],
+        name_by_rec_num: Optional[dict[str, str]] = None,
+    ) -> int:
+        """
+        Background counterpart to _enrich_missing - fetches one label per
+        self._lock acquisition instead of one acquisition for the whole
+        batch, so a foreground request already waiting on the lock is
+        serviced after at most one in-flight label fetch (~1s), not after
+        the entire background batch (confirmed by testing: this was 107s+
+        for a real cold hall before this fix).
+
+        This works because asyncio.Lock is FIFO-fair even under a tight
+        release-then-immediately-reacquire loop: a waiter that started
+        waiting before this loop's next acquire() call is guaranteed to go
+        first (CPython's Lock.acquire() only takes its fast path when there
+        are no *live* waiters already queued - see asyncio/locks.py). So a
+        foreground request queued up during one label fetch jumps ahead of
+        this loop's next iteration automatically; nothing here has to know
+        or care that it happened.
+
+        Same MAX_LABELS_PER_RUN cap and consecutive-failure circuit breaker
+        as the synchronous phase; no time budget here since nothing is
+        waiting on this specific call to finish.
+        """
+        fetched = 0
+        consecutive_failures = 0
+        for rec_num in rec_nums:
+            if not self.recipes.needs_enrichment(rec_num):
+                continue
+            if fetched >= config.MAX_LABELS_PER_RUN:
+                break
+            async with self._lock:
+                # Re-check under the lock: whoever we yielded to while
+                # queued for our turn may have just fetched this same one.
+                if not self.recipes.needs_enrichment(rec_num):
+                    continue
+                record = await self._scrape_label(rec_num, hall_slug, date_str)
+            if record is None:
+                consecutive_failures += 1
+                if consecutive_failures >= config.MAX_CONSECUTIVE_FAILURES:
+                    break
+                continue
+            consecutive_failures = 0
+            self.recipes.put(rec_num, record)
+            self.recipes.flush()
+            _log_parse_result(rec_num, record, hall_slug, name_by_rec_num)
+            fetched += 1
+        return fetched
+
+    def _spawn_background_enrichment(
+        self,
+        hall_slug: str,
+        date_str: str,
+        rec_nums: list[str],
+        name_by_rec_num: Optional[dict[str, str]] = None,
+    ) -> None:
+        """
+        Fire-and-forget enrichment for whatever's still missing after the
+        synchronous budget ran out. Never awaited by a request - the menu
+        response has already gone out by the time this runs.
+
+        Claims rec_nums up front (self._enriching) so a second request
+        landing moments later, for the same or an overlapping menu, doesn't
+        also spawn a redundant task for recipes already being fetched -
+        recipes are global (one label per RecNumAndPort, any hall/date), so
+        "already being fetched" applies regardless of which hall/date/meal
+        asked for it.
+        """
+        to_claim = [r for r in rec_nums if r not in self._enriching]
+        if not to_claim:
+            return
+        self._enriching.update(to_claim)
+
+        async def _run() -> None:
+            start = time.monotonic()
+            try:
+                fetched = await self._run_background_enrichment(hall_slug, date_str, to_claim, name_by_rec_num)
+                logger.info(
+                    "background_enrich hall=%s date=%s claimed=%d fetched=%d elapsed=%.2fs",
+                    hall_slug, date_str, len(to_claim), fetched, time.monotonic() - start,
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # Never let a background scrape take the API down - this is
+                # strictly a nice-to-have over the next request re-fetching
+                # the same rows and finding it still missing.
+                logger.exception("background_enrich failed hall=%s date=%s", hall_slug, date_str)
+            finally:
+                self._enriching.difference_update(to_claim)
+
+        task = asyncio.create_task(_run())
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+
     async def scrape_day(
         self, hall_slug: str, date_str: str, menu_type: str
     ) -> list[dict[str, Any]]:
         """
-        Scrape one hall/date/meal into cacheable dicts, filling nutrition from
-        the global recipe cache and only hitting label.aspx for recipes we have
-        never seen before.
+        Scrape one hall/date/meal into cacheable dicts.
+
+        v1.1.0: menu rows and nutrition enrichment are decoupled. This only
+        blocks on menu rows (fast - a couple of page loads) plus a small,
+        time-boxed batch of missing labels (SYNC_ENRICHMENT_BUDGET_SECONDS),
+        then returns - so a caller gets a usable menu back in seconds even
+        completely cold, not the ~247s a full 260-item cold enrichment used
+        to take. Whatever nutrition didn't fit in the budget keeps getting
+        filled in by a background task after this returns (see
+        _spawn_background_enrichment) and shows up on a later request once
+        it lands in the recipe cache - no extra scrape needed for that, the
+        menu rows are already cached.
         """
+        request_start = time.monotonic()
         async with self._lock:
-            rows = await self._scrape_menu_rows(hall_slug, date_str, menu_type)
+            bootstrap_start = time.monotonic()
+            await self._ensure_session(hall_slug)
+            bootstrap_elapsed = time.monotonic() - bootstrap_start
 
-            fetched = 0
-            consecutive_failures = 0
-            for row in rows:
-                rec_num = row.get("rec_num")
-                if not rec_num:
-                    continue
-                if self.recipes.get(rec_num) is not None:
-                    continue
-                if fetched >= config.MAX_LABELS_PER_RUN:
-                    # Leave the rest for a later call; the cache persists, so
-                    # each request chips away at the backlog.
-                    break
-                record = await self._scrape_label(rec_num, hall_slug, date_str)
-                if record is None:
-                    consecutive_failures += 1
-                    if consecutive_failures >= config.MAX_CONSECUTIVE_FAILURES:
-                        # Server is unhappy - stop pressing it. The menu rows we
-                        # already have are still returned, and the labels we
-                        # missed get picked up on a later request.
-                        break
-                    continue
-                consecutive_failures = 0
-                self.recipes.put(rec_num, record)
-                fetched += 1
+            menu_start = time.monotonic()
+            response = await self._goto(_long_menu_url(hall_slug, date_str, menu_type))
+            menu_fetch_elapsed = time.monotonic() - menu_start
 
-            self.recipes.flush()
-            return rows
+            if response is not None and response.status >= 500:
+                # FoodPro answers 500 for dates it has no menu for - not an
+                # error worth raising, the hall just isn't serving that meal.
+                rows: list[dict[str, Any]] = []
+                menu_parse_elapsed = 0.0
+            else:
+                parse_start = time.monotonic()
+                rows = parse_long_menu(await self._page.content())
+                menu_parse_elapsed = time.monotonic() - parse_start
+
+            # Name lookup purely for diagnostics (_log_parse_result) - never
+            # affects what gets scraped or cached. A recipe can appear under
+            # more than one name/station in principle; first-seen wins,
+            # which is fine for a log line's sake.
+            name_by_rec_num = {
+                row["rec_num"]: row["name"] for row in rows if row.get("rec_num")
+            }
+
+            # A recipe can appear at more than one station sharing one label -
+            # dict.fromkeys dedupes while preserving first-seen menu order.
+            # needs_enrichment (not a bare cache-hit check) so a recipe whose
+            # only cached attempt was "parse_failed" is retried here too,
+            # rather than being treated as done.
+            missing = list(dict.fromkeys(
+                rec_num
+                for row in rows
+                if (rec_num := row.get("rec_num")) and self.recipes.needs_enrichment(rec_num)
+            ))
+
+            sync_fetched = 0
+            if missing:
+                sync_fetched = await self._enrich_missing(
+                    hall_slug, date_str, missing,
+                    budget_seconds=config.SYNC_ENRICHMENT_BUDGET_SECONDS,
+                    name_by_rec_num=name_by_rec_num,
+                )
+
+        # Lock released - hand off whatever the sync budget didn't cover.
+        remaining = [r for r in missing if self.recipes.needs_enrichment(r)]
+        if remaining:
+            self._spawn_background_enrichment(hall_slug, date_str, remaining, name_by_rec_num)
+
+        logger.info(
+            "scrape hall=%s date=%s meal=%s items=%d bootstrap=%.2fs menu_fetch=%.2fs "
+            "menu_parse=%.2fs sync_enrich=%d/%d background_queued=%d total=%.2fs",
+            hall_slug, date_str, menu_type, len(rows), bootstrap_elapsed, menu_fetch_elapsed,
+            menu_parse_elapsed, sync_fetched, len(missing), len(remaining),
+            time.monotonic() - request_start,
+        )
+        return rows
 
 
 _scraper = FoodProScraper()
@@ -480,10 +838,72 @@ _scraper = FoodProScraper()
 _inflight: dict[tuple, asyncio.Task] = {}
 
 
+def _current_pacific_meal_and_date() -> tuple[str, str]:
+    """
+    ("today", "the meal period someone opening the app right now most likely
+    wants") in UCSC's own timezone. Mirrors the frontend's own
+    defaultMealForNow() threshold (frontend/src/utils/date.ts) exactly:
+    breakfast before 10, lunch before 15, dinner otherwise - the point is to
+    prewarm whatever a visitor's own client would default to right now, and
+    that heuristic runs client-side against the visitor's local clock, which
+    for UCSC's actual users is Pacific in the overwhelming common case.
+    """
+    now = datetime.datetime.now(ZoneInfo("America/Los_Angeles"))
+    meal = "breakfast" if now.hour < 10 else "lunch" if now.hour < 15 else "dinner"
+    return meal, now.date().isoformat()
+
+
+async def _prewarm() -> None:
+    """
+    Best-effort, one-shot warm-up kicked off from startup() - not a loop, not
+    recurring, runs exactly once per process boot, so it's inherently bounded
+    and can never turn into runaway scraping on its own.
+
+    Deliberately narrow: only the app's default hall (the first dining hall
+    MenuPage.tsx selects for a fresh visitor with nothing picked yet), only
+    today, only the current meal period - the single combination essentially
+    every cold-start visitor requests first. Scraping every hall here instead
+    would queue several halls' worth of work onto the one shared browser page
+    ahead of whatever a real visitor actually asks for next, which could
+    leave that visitor waiting *longer* than if this didn't run at all.
+
+    Worth doing at all because Render's disk does not persist across deploys
+    (confirmed in production: cache_stats() reads 0 cached recipes/menus
+    immediately after a fresh deploy) - so every boot starts from a fully
+    cold cache regardless, and this just gives the most likely first request
+    a head start instead of only starting once that request actually arrives.
+
+    Uses the exact same path a real request would (_get_rows), so it composes
+    safely with everything that already guards that path: the per-key
+    in-flight dedupe (a real request for the same hall/date/meal arriving
+    while this runs shares this task rather than double-scraping) and the
+    scraper's own request pacing/timeouts/retry limits. Any failure here is
+    caught and logged, never raised - this is a nice-to-have, not something
+    that should ever be able to affect a real request.
+    """
+    try:
+        default_hall = next(iter(config.DINING_HALLS), None)
+        if not default_hall:
+            return
+        meal, today = _current_pacific_meal_and_date()
+        logger.info("prewarm start hall=%s date=%s meal=%s", default_hall, today, meal)
+        await _get_rows(default_hall, meal, today)
+        logger.info("prewarm done hall=%s date=%s meal=%s", default_hall, today, meal)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.exception("prewarm failed")
+
+
 async def startup() -> None:
     """Launch the browser up front so the first request isn't slow."""
     if not config.USE_MOCK_DATA:
         await _scraper.start()
+        if config.PREWARM_ON_STARTUP:
+            # Not awaited - readiness (GET /) must not wait on this.
+            task = asyncio.create_task(_prewarm())
+            _scraper._background_tasks.add(task)
+            task.add_done_callback(_scraper._background_tasks.discard)
 
 
 async def shutdown() -> None:
@@ -505,6 +925,11 @@ def _to_food_items(
         rec_num = row.get("rec_num")
         record = _scraper.recipes.get(rec_num) if rec_num else None
 
+        # A row with no rec_num at all (rare) has nothing that could ever be
+        # looked up - that's a confirmed absence, not "check back later", so
+        # don't route it through _nutrition_from(None), which means pending.
+        nutrition = _nutrition_from(record) if rec_num else NutritionInfo(pending=False)
+
         # Prefer the label's alt-text icons; longmenu only gives gif filenames.
         icons = (record or {}).get("icons") or row.get("icons") or []
 
@@ -518,7 +943,7 @@ def _to_food_items(
                 date=date_str,
                 station=row.get("station"),
                 portion=row.get("portion"),
-                nutrition=_nutrition_from(record),
+                nutrition=nutrition,
                 icons=icons,
             )
         )
@@ -533,6 +958,7 @@ async def _get_rows(hall_slug: str, menu_type: str, date_str: str) -> list[dict[
 
         return get_mock_rows(hall_slug, menu_type, date_str)
 
+    lookup_start = time.monotonic()
     path = _menu_cache_path(hall_slug, date_str, menu_type)
     cached = _read_json(path)
     if cached:
@@ -540,8 +966,13 @@ async def _get_rows(hall_slug: str, menu_type: str, date_str: str) -> list[dict[
         # Closed halls cache briefly; published menus cache for the full TTL.
         ttl = config.CACHE_TTL_SECONDS if rows else config.EMPTY_CACHE_TTL_SECONDS
         if (time.time() - cached.get("fetched_at", 0)) < ttl:
+            logger.info(
+                "menu_cache HIT hall=%s date=%s meal=%s items=%d lookup=%.3fs",
+                hall_slug, date_str, menu_type, len(rows), time.monotonic() - lookup_start,
+            )
             return rows
 
+    logger.info("menu_cache MISS hall=%s date=%s meal=%s", hall_slug, date_str, menu_type)
     key = (hall_slug, date_str, menu_type)
     task = _inflight.get(key)
     if task is None:
